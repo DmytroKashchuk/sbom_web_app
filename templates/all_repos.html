@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>All Repositories</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <!-- Tabulator CSS -->
+  <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet">
+  <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator_simple.min.css" rel="stylesheet">
+  <!-- Chart.js if needed -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Dependencies -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  <!-- Tabulator JS -->
+  <script src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
+</head>
+<body>
+  {% include 'navbar.html' %}
+  <div class="container-fluid my-4">
+    <h1>All Repositories</h1>
+    <div class="mb-3">
+      <a href="{{ url_for('all_repos', zero_libs=1) }}" class="btn btn-sm btn-warning mr-2">
+        Repos with zero libraries: {{ count_zero_libs }}
+      </a>
+      {% if zero_libs %}
+      <a href="{{ url_for('all_repos') }}" class="btn btn-sm btn-secondary">
+        Show All Repositories
+      </a>
+      {% endif %}
+    </div>
+    <!-- Tabulator Table Container -->
+    <div id="repos-table"></div>
+  </div>
+
+  <script>
+    // Data and column setup
+    var tableData = {{ records|tojson }};
+    var tableCols = [
+      {% for col in columns %}
+      {
+        title: "{{ col }}",
+        field: "{{ col }}",
+        hozAlign: "left",
+        headerSort: true
+        {% if col=='full_name' %},
+        formatter: "link",
+        formatterParams: { urlField: "repository_url" }
+        {% endif %}
+      },
+      {% endfor %}
+    ];
+
+    // Remove duplicate columns
+    tableCols = tableCols.filter((c,i,a) => a.findIndex(x=>x.field===c.field)===i);
+
+    // Initialize Tabulator
+    var table = new Tabulator("#repos-table", {
+      data: tableData,
+      columns: tableCols,
+      layout: "fitDataStretch",
+      pagination: "local",
+      paginationSize: 50,
+      theme: "bootstrap",
+      paginationSizeSelector: [50,100,250,500,true],
+      paginationButtonCount: 5,
+      virtualDom: true,
+      height: "auto",
+    });
+  </script>
+</body>
+</html>

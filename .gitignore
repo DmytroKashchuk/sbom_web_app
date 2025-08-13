@@ -1,0 +1,50 @@
+# Python / Flask
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+.env
+.venv/
+venv/
+env/
+instance/
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.cache/
+
+# Flask / SQLite DB files
+*.db
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# IDE / Editor
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# CSV and data files (ignore all CSVs)
+*.csv
+
+# If you want to keep a specific CSV, negate it below, e.g.:
+# !data/README.csv
+
+# Environment / secrets
+*.env
+.env.*
+
+# Node (if any frontend assets later)
+node_modules/

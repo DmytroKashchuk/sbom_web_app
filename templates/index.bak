@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fortune 1000 Dashboard</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  <!-- add Chart.js for barplot -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Tabulator CSS -->
+  <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet">
+  <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator_simple.min.css" rel="stylesheet">
+  <!-- Tabulator JS -->
+  <script src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
+  <style>
+    body {
+      background-color: #f8f9fa;
+      padding-top: 70px;
+      /* space for fixed navbar */
+    }
+
+    .table-responsive {
+      max-height: calc(100vh - 300px);
+      overflow-y: auto;
+    }
+
+    .table-responsive thead th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background-color: #343a40;
+      color: #fff;
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="navbar fixed-top navbar-expand-lg navbar-light bg-light">
+    <a class="navbar-brand" href="{{ url_for('index') }}">SBOM Dashboard</a>
+    <div class="navbar-nav">
+      <a class="nav-item nav-link" href="{{ url_for('index') }}">Home</a>
+      <a class="nav-item nav-link" href="{{ url_for('main') }}">Main</a>
+      <a class="nav-item nav-link" href="{{ url_for('all_repos') }}">All Repos</a>
+      <a class="nav-item nav-link" href="{{ url_for('all_libs') }}">All Libraries</a>
+      <a class="nav-item nav-link" href="{{ url_for('vulnerability_propagations') }}">Vulnerabilities Propagation</a>
+    </div>
+  </nav>
+  <div class="container-fluid py-4">
+    <!-- Summary Statistics -->
+    <div class="row mb-4">
+      <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
+        <div class="card shadow-sm text-center">
+          <div class="card-body">
+            <h5 class="card-title text-primary">Total Organizations</h5>
+            <h2 class="text-primary">{{ total_orgs }}</h2>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
+        <div class="card shadow-sm text-center">
+          <div class="card-body">
+            <h5 class="card-title text-success">With GitHub Profiles</h5>
+            <h2 class="text-success">{{ orgs_with_profiles }}</h2>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
+        <div class="card shadow-sm text-center">
+          <div class="card-body">
+            <h5 class="card-title text-warning">Profiles with Zero Repos</h5>
+            <h2 class="text-warning">{{ orgs_zero_repos }}</h2>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
+        <div class="card shadow-sm text-center">
+          <div class="card-body">
+            <h5 class="card-title text-info">Total Repos</h5>
+            <h2 class="text-info">{{ total_repos }}</h2>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
+        <div class="card shadow-sm text-center">
+          <div class="card-body">
+            <h5 class="card-title text-secondary">Analyzed Repos</h5>
+            <h2 class="text-secondary">{{ total_analyzed_repos }}</h2>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
+        <div class="card shadow-sm text-center">
+          <div class="card-body">
+            <h5 class="card-title text-secondary">Repos with zero Libs</h5>
+            <h2 class="text-secondary">{{ repos_with_zero_libs }}</h2>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Statistics Section -->
+    <div class="row mb-4">
+      <div class="col-md-4">
+        <div class="card shadow-sm">
+          <div class="card-header bg-primary text-white">
+            <i class="fas fa-code-branch mr-2"></i>Most Repositories
+          </div>
+          <div class="card-body p-0">
+            <table class="table table-sm mb-0">
+              <tbody>
+                {% for org, count in org_repo_counts.items() %}
+                <tr>
+                  <td><a href="{{ url_for('repos', profile=org) }}">{{ org }}</a></td>
+                  <td class="text-right">{{ count }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card shadow-sm">
+          <div class="card-header bg-warning text-dark">
+            <i class="fas fa-star mr-2"></i>Most Stars
+          </div>
+          <div class="card-body p-0">
+            <table class="table table-sm mb-0">
+              <tbody>
+                {% for org, count in org_star_counts.items() %}
+                <tr>
+                  <td><a href="{{ url_for('repos', profile=org) }}">{{ org }}</a></td>
+                  <td class="text-right">{{ count }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card shadow-sm">
+          <div class="card-header bg-success text-white">
+            <i class="fas fa-code mr-2"></i>Top Languages
+          </div>
+          <div class="card-body p-0">
+            <table class="table table-sm mb-0">
+              <tbody>
+                {% for lang, count in top_languages %}
+                <tr>
+                  <td><a href="{{ url_for('orgs_by_language', language=lang) }}">{{ lang }}</a></td>
+                  <td class="text-right">{{ count }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top 10 Countries Barplot and SIC Industries Charts -->
+    <div class="row mb-4">
+      <div class="col-md-4">
+        <div class="card shadow-sm">
+          <div class="card-header bg-info text-white">
+            <i class="fas fa-flag mr-2"></i>Top 10 Countries by Profiles
+          </div>
+          <div class="card-body p-0">
+            <canvas id="countriesBar" style="height:400px;"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+  <div class="card shadow-sm">
+    <div class="card-header bg-info text-white">
+      <i class="fas fa-flag mr-2"></i>Top 10 SIC Industries
+    </div>
+    <div class="card-body p-0">
+      <canvas id="SICBar" style="height:400px;"></canvas>
+    </div>
+  </div>
+</div>
+
+      <div class="col-md-4">
+        <div class="card shadow-sm">
+          <div class="card-header bg-success text-white">
+            <i class="fas fa-code-branch mr-2"></i>Top 10 SIC by Total Repos
+          </div>
+          <div class="card-body p-0">
+            <canvas id="SICReposBar" style="height:400px;"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Data Table -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-light d-flex justify-content-start align-items-center">
+        <h2 class="mb-0"><i class="fas fa-chart-line mr-2"></i>|</h2>
+        <!-- Columns dropdown -->
+        <div class="dropdown">
+          <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="columnsDropdown"
+            data-toggle="dropdown">
+            Columns
+          </button>
+          <form class="dropdown-menu p-3" method="get" id="columnsForm">
+            <!-- preserve search/sort in hidden fields -->
+            <input type="hidden" name="search" value="{{ search }}">
+            <input type="hidden" name="sort_by" value="{{ sort_by }}">
+            <input type="hidden" name="order" value="{{ order }}">
+            {% for col in all_columns %}
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="columns" value="{{ col }}" id="col-{{ loop.index }}"
+                {% if col in selected_cols %}checked{% endif %}>
+              <label class="form-check-label" for="col-{{ loop.index }}">{{ col }}</label>
+            </div>
+            {% endfor %}
+            <div class="text-right mt-2">
+              <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <div class="card-body">
+        <!-- Filter form -->
+        <form class="form-inline mb-3" method="get">
+          <input type="hidden" name="sort_by" value="{{ sort_by }}">
+          <input type="hidden" name="order" value="{{ order }}">
+          {% for col in selected_cols %}
+          <input type="hidden" name="columns" value="{{ col }}">
+          {% endfor %}
+          <div class="input-group w-100">
+            <input name="search" type="search" class="form-control" placeholder="Search company" value="{{ search }}">
+            <div class="input-group-append">
+              <button class="btn btn-primary" type="submit"><i class="fas fa-search"></i> Filter</button>
+            </div>
+          </div>
+        </form>
+        <!-- replaced server-rendered table with Tabulator -->
+        <div id="index-table"></div>
+      </div>
+    </div>
+  </div>
+  <!-- render barplot -->
+  <script>
+    const countryLabels = {{ top_countries| map(attribute = 0) | list | tojson }};
+    const countryCounts = {{ top_countries| map(attribute = 1) | list | tojson }};
+
+    new Chart(document.getElementById('countriesBar'), {
+      type: 'bar',
+      data: {
+        labels: countryLabels,
+        datasets: [{
+          label: 'Profiles',
+          data: countryCounts,
+          backgroundColor: 'rgba(54, 162, 235, 0.6)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,   // honor fixed canvas height
+        scales: {
+          x: { title: { display: true, text: 'Country' } },
+          y: { beginAtZero: true, title: { display: true, text: 'Count' } }
+        }
+      }
+    });
+  </script>
+
+  <script>
+  const sicLabels     = {{ top_sic | map(attribute=0) | list | tojson }};
+  const totalCounts   = {{ top_sic | map(attribute=1) | list | tojson }};
+  const profileCounts = {{ top_sic_profiles | tojson }};
+
+  new Chart(document.getElementById('SICBar'), {
+    type: 'bar',
+    data: {
+      labels: sicLabels,
+      datasets: [
+        {
+          label: 'Total Companies',
+          data: totalCounts,
+          backgroundColor: 'rgba(153, 102, 255, 0.6)',
+          borderColor:     'rgba(153, 102, 255, 1)',
+          borderWidth: 1
+        },
+        {
+          label: 'With GitHub Profile',
+          data: profileCounts,
+          backgroundColor: 'rgba(54, 162, 235, 0.6)',
+          borderColor:     'rgba(54, 162, 235, 1)',
+          borderWidth: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { title: { display: true, text: 'SIC Code' } },
+        y: { beginAtZero: true, title: { display: true, text: 'Count' } }
+      }
+    }
+  });
+</script>
+
+  <!-- New SIC Repos Chart -->
+  <script>
+    const sicReposLabels = {{ top_sic | map(attribute=0) | list | tojson }};
+    const sicReposCounts = {{ top_sic_repos | tojson }};
+
+    new Chart(document.getElementById('SICReposBar'), {
+      type: 'bar',
+      data: {
+        labels: sicReposLabels,
+        datasets: [{
+          label: 'Total Repositories',
+          data: sicReposCounts,
+          backgroundColor: 'rgba(75, 192, 192, 0.6)',
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { title: { display: true, text: 'SIC Code' } },
+          y: { beginAtZero: true, title: { display: true, text: 'Number of Repositories' } }
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top'
+          }
+        }
+      }
+    });
+  </script>
+
+  <!-- Tabulator init for index table -->
+  <script>
+    var indexData = {{ records| tojson }};
+    var indexCols = [
+      {% for col in columns %}
+    {
+      title: "{{ col }}",
+        field: "{{ col }}",
+          hozAlign: "left",
+            headerSort: true
+      {% if col == 'global_company' %},
+      formatter: "link",
+        formatterParams: {
+        urlPrefix: "{{ url_for('repos', profile='') }}",
+          urlField: "github_profile_name"
+      }
+      {% endif %}
+    },
+    {% endfor %}
+    ];
+    // remove duplicates
+    indexCols = indexCols.filter((c, i, a) => a.findIndex(x => x.field === c.field) === i);
+
+    new Tabulator("#index-table", {
+      data: indexData,
+      columns: indexCols,
+      layout: "fitDataStretch",
+      pagination: "local",
+      paginationSize: 50,
+      theme: "bootstrap",
+      paginationSizeSelector: [50, 100, 250, 500, true],
+      paginationButtonCount: 5,
+      virtualDom: true,
+      height: "auto",
+    });
+  </script>
+</body>
+
+</html>
+label: 'Profiles',
+data: countryCounts,
+backgroundColor: 'rgba(54, 162, 235, 0.6)',
+borderColor: 'rgba(54, 162, 235, 1)',
+borderWidth: 1
+}]
+},
+options: {
+responsive: true,
+maintainAspectRatio: false, // honor fixed canvas height
+scales: {
+x: { title: { display: true, text: 'Country' } },
+y: { beginAtZero: true, title: { display: true, text: 'Count' } }
+}
+}
+});
+</script>
+</body>
+
+</html>

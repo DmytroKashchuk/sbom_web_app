@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Main Data</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <!-- Keep only one Tabulator theme CSS (simple) -->
+  <!-- Removed base tabulator.min.css to avoid style conflicts blocking header clicks -->
+  <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet" />
+  <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator_simple.min.css" rel="stylesheet" />
+
+  <!-- Tabulator JS -->
+  <script src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
+  <!--
+  <link href="https://unpkg.com/tabulator-tables@5.4.3/dist/css/tabulator_site.min.css" rel="stylesheet" />
+  -->
+  <style>
+    body { padding-top: 70px; }  /* space for fixed navbar */
+
+    .table-responsive {
+      max-height: calc(100vh - 200px);
+      overflow-y: auto;
+    }
+
+    .table-responsive thead th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background-color: #343a40;
+      color: #fff;
+    }
+
+    .table-hover tbody tr:hover {
+      background-color: #f1f3f5;
+    }
+
+    .align-middle th,
+    .align-middle td {
+      vertical-align: middle;
+    }
+
+    .scatter-canvas {
+      width: 250px;
+      height: 400px !important;
+    }
+
+    /* Custom gradient backgrounds */
+    .bg-gradient-primary {
+      background: linear-gradient(45deg, #007bff, #0056b3);
+    }
+
+    .bg-gradient-secondary {
+      background: linear-gradient(45deg, #6c757d, #495057);
+    }
+
+    /* Custom card styling */
+    .card {
+      transition: transform 0.2s ease-in-out;
+    }
+
+    .progress {
+      border-radius: 10px;
+    }
+
+    .progress-bar {
+      border-radius: 10px;
+    }
+
+    /* Enhanced table styling */
+    .border-left-primary {
+      border-left: 4px solid #007bff !important;
+    }
+
+    .border-left-secondary {
+      border-left: 4px solid #6c757d !important;
+    }
+
+    .thead-dark th {
+      background: linear-gradient(45deg, #343a40, #495057) !important;
+      border: none !important;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .table td { /* limit to bootstrap tables inside cards, not Tabulator */ }
+    .card .table td { padding: 1rem; border-top: 1px solid rgba(0,0,0,0.05);}    
+    /* clickable cursor for tabulator headers */
+    .tabulator .tabulator-col{cursor:pointer;}
+
+    .badge-pill {
+      font-size: 0.9rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+  </style>
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  <!-- Removed duplicate older Tabulator 5.4.3 script to restore sorting -->
+  <!-- <script src="https://unpkg.com/tabulator-tables@5.4.3/dist/js/tabulator.min.js"></script> -->
+  <!-- Chart.js for scatter plots -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+  {% include 'navbar.html' %}
+
+  <div class="container-fluid my-4">
+    <h1>Main Data</h1>
+
+
+    <!-- Repo Vulnerability Breakdown -->
+    <div class="row justify-content-center mb-4">
+      <div class="col-lg-8 col-md-10">
+        <div class="card shadow border-0">
+          <div class="card-header bg-primary text-white text-center">
+            <h4 class="mb-0 font-weight-bold">
+              <i class="fas fa-shield-alt mr-2"></i>Repository Vulnerability Overview
+            </h4>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead class="thead-light">
+                  <tr>
+                    <th class="text-center border-0 font-weight-bold">Repository Status</th>
+                    <th class="text-center border-0 font-weight-bold">Vulnerable Repos</th>
+                    <th class="text-center border-0 font-weight-bold">Total Repos</th>
+                    <th class="text-center border-0 font-weight-bold">Vulnerability Rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="text-center align-middle font-weight-bold">
+                      <i class="fas fa-play-circle text-success mr-2"></i>
+                      <span class="text-primary">Active</span>
+                    </td>
+                    <td class="text-center align-middle">
+                      <h5 class="text-danger font-weight-bold mb-0">
+                        <a href="{{ url_for('all_repos', active='yes', vulnerable='yes') }}" 
+                           class="text-decoration-none text-danger">
+                          {{ active_vuln_count }}
+                        </a>
+                      </h5>
+                    </td>
+                    <td class="text-center align-middle">
+                      <h5 class="text-primary font-weight-bold mb-0">
+                        <a href="{{ url_for('all_repos', active='yes') }}" 
+                           class="text-decoration-none text-primary">
+                          {{ active_repo_count }}
+                        </a>
+                      </h5>
+                    </td>
+                    <td class="text-center align-middle">
+                      <span class="badge badge-warning badge-pill px-3 py-2 h5 mb-0">
+                        {{ active_vuln_pct }}%
+                      </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="text-center align-middle font-weight-bold">
+                      <i class="fas fa-pause-circle text-secondary mr-2"></i>
+                      <span class="text-secondary">Inactive</span>
+                    </td>
+                    <td class="text-center align-middle">
+                      <h5 class="text-danger font-weight-bold mb-0">
+                        <a href="{{ url_for('all_repos', active='no', vulnerable='yes') }}" 
+                           class="text-decoration-none text-danger">
+                          {{ inactive_vuln_count }}
+                        </a>
+                      </h5>
+                    </td>
+                    <td class="text-center align-middle">
+                      <h5 class="text-secondary font-weight-bold mb-0">
+                        <a href="{{ url_for('all_repos', active='no') }}" 
+                           class="text-decoration-none text-secondary">
+                          {{ inactive_repo_count }}
+                        </a>
+                      </h5>
+                    </td>
+                    <td class="text-center align-middle">
+                      <span class="badge badge-info badge-pill px-3 py-2 h5 mb-0">
+                        {{ inactive_vuln_pct }}%
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vulnerabilities Section -->
+    <div class="border rounded p-3 mb-4">
+      <h2 class="mb-3">Vulnerabilities</h2>
+      <form class="form-inline mb-3" method="get">
+        <input type="hidden" name="search" value="{{ search }}">
+        <input type="hidden" name="sort_by" value="{{ sort_by }}">
+        <input type="hidden" name="order" value="{{ order }}">
+        {% for col in selected_cols %}
+        <input type="hidden" name="columns" value="{{ col }}">
+        {% endfor %}
+        <label for="threshold" class="mr-2">Min Repos:</label>
+        <input id="threshold" name="threshold" type="number" class="form-control mr-2" value="{{ threshold }}" min="0">
+        <button class="btn btn-primary btn-sm" type="submit">Apply</button>
+      </form>
+      <div class="row mb-4">
+        <!-- Top 10 Highest % -->
+        <div class="col-md-3">
+          <div class="card shadow-sm">
+            <div class="card-header bg-danger text-white">
+              Most Vulnerable TECH Companies %
+            </div>
+            <div class="card-body p-0">
+              <table class="table table-sm mb-0">
+                <thead>
+                  <tr>
+                    <th>Company</th>
+                    <th class="text-center">Vuln</th>
+                    <th class="text-center">Safe</th>
+                    <th class="text-center">%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for org, pct in most_vuln_tech_top10.items() %}
+                  <tr>
+                    <td>
+                      {% set avatar = avatar_url_map.get(org) if avatar_url_map is defined else None %}
+                      {% if avatar %}
+                        <img src="{{ avatar }}" alt="{{ global_company[org] }}" class="rounded-circle mr-1" style="width:18px;height:18px;object-fit:cover;vertical-align:middle;">
+                      {% endif %}
+                      <a href="{{ url_for('repos', profile=org) }}">{{ global_company[org] }}</a>
+                    </td>
+                    <td class="text-center">{{ tech_stats[org]['vuln_repos'] }}</td>
+                    <td class="text-center">{{ tech_stats[org]['non_vuln_repos'] }}</td>
+                    <td class="text-center">{{ "%.2f"|format(pct) }}%</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <!-- Ranks 21–30 % -->
+        <div class="col-md-3">
+          <div class="card shadow-sm">
+            <div class="card-header bg-warning text-dark">
+              Least Vulnerable TECH Companies %
+            </div>
+            <div class="card-body p-0">
+              <table class="table table-sm mb-0">
+                <thead>
+                  <tr>
+                    <th>Company</th>
+                    <th class="text-center">Vuln</th>
+                    <th class="text-center">Safe</th>
+                    <th class="text-center">%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for org, pct in least_vuln_tech_top10.items() %}
+                  <tr>
+                    <td>
+                      {% set avatar = avatar_url_map.get(org) if avatar_url_map is defined else None %}
+                      {% if avatar %}
+                        <img src="{{ avatar }}" alt="{{ global_company[org] }}" class="rounded-circle mr-1" style="width:18px;height:18px;object-fit:cover;vertical-align:middle;">
+                      {% endif %}
+                      <a href="{{ url_for('repos', profile=org) }}">{{ global_company[org] }}</a>
+                    </td>
+                    <td class="text-center">{{ least_tech_stats[org]['vuln_repos'] }}</td>
+                    <td class="text-center">{{ least_tech_stats[org]['non_vuln_repos'] }}</td>
+                    <td class="text-center">{{ "%.2f"|format(pct) }}%</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <!-- Top 10 Lowest % -->
+        <div class="col-md-3">
+          <div class="card shadow-sm">
+            <div class="card-header bg-success text-white">
+              Most Vulnerable NON-TECH Companies %
+            </div>
+            <div class="card-body p-0">
+              <table class="table table-sm mb-0">
+                <thead>
+                  <tr>
+                    <th>Company</th>
+                    <th class="text-center">Vuln</th>
+                    <th class="text-center">Safe</th>
+                    <th class="text-center">%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for org, pct in most_vuln_non_tech_top10.items() %}
+                  <tr>
+                    <td>
+                      {% set avatar = avatar_url_map.get(org) if avatar_url_map is defined else None %}
+                      {% if avatar %}
+                        <img src="{{ avatar }}" alt="{{ global_company[org] }}" class="rounded-circle mr-1" style="width:18px;height:18px;object-fit:cover;vertical-align:middle;">
+                      {% endif %}
+                      <a href="{{ url_for('repos', profile=org) }}">{{ global_company[org] }}</a>
+                    </td>
+                    <td class="text-center">{{ non_tech_stats[org]['vuln_repos'] }}</td>
+                    <td class="text-center">{{ non_tech_stats[org]['non_vuln_repos'] }}</td>
+                    <td class="text-center">{{ "%.2f"|format(pct) }}%</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <!-- Ranks 11–20 Lowest % -->
+        <div class="col-md-3">
+          <div class="card shadow-sm">
+            <div class="card-header bg-info text-white">
+              Least Vulnerable NON-TECH Companies %
+            </div>
+            <div class="card-body p-0">
+              <table class="table table-sm mb-0">
+                <thead>
+                  <tr>
+                    <th>Company</th>
+                    <th class="text-center">Vuln</th>
+                    <th class="text-center">Safe</th>
+                    <th class="text-center">%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for org, pct in least_vuln_non_tech_top10.items() %}
+                  <tr>
+                    <td>
+                      {% set avatar = avatar_url_map.get(org) if avatar_url_map is defined else None %}
+                      {% if avatar %}
+                        <img src="{{ avatar }}" alt="{{ global_company[org] }}" class="rounded-circle mr-1" style="width:18px;height:18px;object-fit:cover;vertical-align:middle;">
+                      {% endif %}
+                      <a href="{{ url_for('repos', profile=org) }}">{{ global_company[org] }}</a>
+                    </td>
+                    <td class="text-center">{{ least_non_tech_stats[org]['vuln_repos'] }}</td>
+                    <td class="text-center">{{ least_non_tech_stats[org]['non_vuln_repos'] }}</td>
+                    <td class="text-center">{{ "%.2f"|format(pct) }}%</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scatter Plots Section -->
+    <div class="border rounded p-3 mb-4">
+      <h2 class="mb-3">Scatter Plots</h2>
+      <div class="row mb-4">
+        <!-- Stars vs Vuln -->
+        <div class="col-md-3">
+          <div class="card shadow-sm">
+            <div class="card-body p-0">
+              <div class="p-2">
+                <label class="small mb-0">Min Stars:
+                  <input id="starsFilter" type="number" class="form-control form-control-sm" value="0">
+                </label>
+              </div>
+              <canvas id="scatterStars" class="scatter-canvas"></canvas>
+            </div>
+          </div>
+        </div>
+        <!-- Forks vs Vuln -->
+        <div class="col-md-3">
+          <div class="card shadow-sm">
+            <div class="card-body p-0">
+              <div class="p-2">
+                <label class="small mb-0">Min Forks:
+                  <input id="forksFilter" type="number" class="form-control form-control-sm" value="0">
+                </label>
+              </div>
+              <canvas id="scatterForks" class="scatter-canvas"></canvas>
+            </div>
+          </div>
+        </div>
+        <!-- Language vs Vuln (no filter) -->
+        <div class="col-md-3">
+          <div class="card shadow-sm">
+            <div class="card-body p-0">
+              <canvas id="scatterLang" class="scatter-canvas"></canvas>
+            </div>
+          </div>
+        </div>
+        <!-- Followers vs Vuln -->
+        <div class="col-md-3">
+          <div class="card shadow-sm">
+            <div class="card-body p-0">
+              <div class="p-2">
+                <label class="small mb-0">Min Followers:
+                  <input id="followersFilter" type="number" class="form-control form-control-sm" value="0">
+                </label>
+              </div>
+              <canvas id="scatterFollowers" class="scatter-canvas"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search & Column Picker -->
+    <form class="form-inline mb-3" method="get" id="controlsForm">
+      <input type="hidden" name="sort_by" value="{{ sort_by }}">
+      <input type="hidden" name="order" value="{{ order }}">
+      <!-- removed hidden selected_cols to avoid re-submitting old columns -->
+      <div class="input-group mr-2">
+        <input name="search" type="search" class="form-control" placeholder="Search company" value="{{ search }}">
+        <div class="input-group-append">
+          <button class="btn btn-primary" type="submit">
+            <i class="fas fa-search"></i> Filter
+          </button>
+        </div>
+      </div>
+
+      <!-- profile filter: radio buttons -->
+      <div class="form-inline ml-3 mr-3">
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="profileFilter" id="profileAll" value="all" checked>
+          <label class="form-check-label" for="profileAll">All Profiles</label>
+        </div>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="profileFilter" id="profileOnly" value="only">
+          <label class="form-check-label" for="profileOnly">Only with GitHub profile</label>
+        </div>
+      </div>
+
+      <div class="dropdown mr-2">
+        <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="colsDropdown"
+          data-toggle="dropdown">
+          Columns
+        </button>
+        <div class="dropdown-menu dropdown-menu-right p-3">
+          {% for col in all_columns %}
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox"
+               name="columns" id="col-{{ loop.index }}"
+               value="{{ col }}"
+               {% if col in selected_cols %}checked{% endif %}>
+            <label class="form-check-label" for="col-{{ loop.index }}">
+              {{ col }}
+            </label>
+          </div>
+          {% endfor %}
+          <div class="text-right mt-2">
+            <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+          </div>
+        </div>
+      </div>
+
+      <button type="button" id="downloadCsv" class="btn btn-success">
+        <i class="fas fa-download"></i> Download CSV
+      </button>
+    </form>
+
+    <!-- Client-side Table with Tabulator -->
+    <div id="main-table"></div>
+    <script>
+      const tableData = {{ records|tojson }};
+      const repoUrlPrefix = "{{ url_for('repos', profile='') }}"; // e.g. /repos/
+
+      // Column definitions
+      let tableCols = [
+        {% for col in columns %}
+        { title: "{{ col }}", field: "{{ col }}", headerSort:true
+          {% if col=='global_company' %}, formatter:function(cell){ 
+            const d   = cell.getData();
+            const prof= d.github_profile_name || '';
+            const val = cell.getValue() || '';
+            const ava = d.avatar_url || '';
+            const img = ava ? `<img src="${ava}" alt="${val}" class="rounded-circle mr-2" style="width:20px;height:20px;object-fit:cover;">` : '';
+            if(!prof) return img + val;
+            return `${img}<a href="${repoUrlPrefix}${prof}">${val}</a>`; 
+          } {% endif %}
+        },
+        {% endfor %}
+      ];
+      tableCols = tableCols.filter((c,i,a)=>a.findIndex(x=>x.field===c.field)===i);
+
+      function smartNumParse(val){ if(val==null||val==='') return 0; if(typeof val==='number') return val; let s=String(val).trim(); let pct=false; if(s.endsWith('%')){pct=true; s=s.slice(0,-1).trim();} s=s.replace(/[$€£¥]/g,'').replace(/,/g,'').replace(/\s+/g,''); let neg=false; if(s.startsWith('(')&&s.endsWith(')')){neg=true; s=s.slice(1,-1);} let mult=1; const m=s.match(/([0-9.+-]+)([KMBT])$/i); if(m){s=m[1]; const suf=m[2].toUpperCase(); if(suf==='K') mult=1e3; else if(suf==='M') mult=1e6; else if(suf==='B') mult=1e9; else if(suf==='T') mult=1e12;} let n=parseFloat(s); if(isNaN(n)) return 0; n*=mult; if(neg) n=-n; if(pct) n/=100; return n; }
+      Tabulator.extendModule('sort','sorters',{smartnum:(a,b)=>smartNumParse(a)-smartNumParse(b)});
+
+      const sample = tableData.slice(0,50);
+      tableCols = tableCols.map(col=>{ if(col.field==='global_company') return col; const numeric = sample.every(r=>{const v=r[col.field]; return v==null||v===''||!isNaN(smartNumParse(v));}); if(numeric){col.sorter='smartnum'; col.hozAlign=col.hozAlign||'right';} return col; });
+
+      const table = new Tabulator('#main-table', {
+        data: tableData,
+        columns: tableCols,
+        layout: 'fitDataStretch',
+        pagination: 'local',
+        paginationSize: 50,
+        paginationSizeSelector: [50,100,250,500,true],
+        paginationButtonCount: 5,
+        virtualDom: true,
+        height: 'auto',
+        columnHeaderSortMulti:true,
+      });
+
+      console.log('Tabulator version', Tabulator.version);
+
+      // CSV Download
+      document.getElementById('downloadCsv').addEventListener('click', ()=>{
+        table.download('csv','main_selected_columns.csv',{columnHeaders:true,bom:true,rowRange:'all'});
+      });
+
+      // Profile filter radios AFTER table is built
+      const possibleProfileFields = ['github_profile_name','github_profile','profile_name'];
+      const dataKeys = Object.keys(tableData[0]||{});
+      const profileField = possibleProfileFields.find(f=>dataKeys.includes(f));
+      console.log('Detected profileField:', profileField);
+
+      table.on('tableBuilt', () => {
+        console.log('Table built, enabling profile filters');
+        if(!profileField) return;
+        const radios = document.querySelectorAll('input[name="profileFilter"]');
+        function applyProfile(){
+          const mode = document.querySelector('input[name="profileFilter"]:checked')?.value || 'all';
+          // clear only our previous function filter(s)
+          table.clearFilter(); // no other client filters currently
+          if(mode==='only'){
+            const fn = function(data){
+              const v = data[profileField];
+              return v !== null && v !== undefined && String(v).trim() !== '';
+            };
+            table.addFilter(fn);
+            console.log('Applied profile filter: only');
+          } else {
+            console.log('Applied profile filter: all');
+          }
+        }
+        radios.forEach(r=> r.addEventListener('change', applyProfile));
+        // initial apply based on current selection
+        applyProfile();
+      });
+
+      // Scatter Charts use same tableData (no redeclare)
+      const keys = Object.keys(tableData[0]||{});
+      const vulnField  = keys.find(f=>/vuln/i.test(f))     || keys[0];
+      const starsField = keys.find(f=>/star/i.test(f))     || keys[1];
+      const forksField = keys.find(f=>/fork/i.test(f))     || keys[2];
+      const langField  = keys.find(f=>/lang/i.test(f))     || keys[3];
+      const follField  = keys.find(f=>/follower/i.test(f)) || keys[4];
+
+      const starsDataOrig     = tableData.map(r=>({x:parseFloat(r[starsField])||0, y:parseFloat(r[vulnField])||0}));
+      const forksDataOrig     = tableData.map(r=>({x:parseFloat(r[forksField])||0, y:parseFloat(r[vulnField])||0}));
+      const langDataOrig      = tableData.map(r=>({x:r[langField]||'Unknown',      y:parseFloat(r[vulnField])||0}));
+      const followersDataOrig = tableData.map(r=>({x:parseFloat(r[follField])||0,  y:parseFloat(r[vulnField])||0}));
+
+      function makeChart(id,data,xLabel){
+        const isCategory = typeof data[0]?.x === 'string';
+        const cfg = {type:isCategory?'bar':'scatter',data:{},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{}}};
+        if(isCategory){
+          cfg.data.labels = data.map(d=>d.x);
+          cfg.data.datasets=[{label:xLabel,data:data.map(d=>d.y),backgroundColor:'rgba(54,162,235,0.6)',borderColor:'rgba(54,162,235,1)',borderWidth:1}];
+          cfg.options.scales={x:{title:{display:true,text:xLabel}},y:{beginAtZero:true,title:{display:true,text:'Vulnerability Rate'}}};
+        } else {
+          cfg.data.datasets=[{label:xLabel,data:data,backgroundColor:'rgba(75,192,192,0.6)'}];
+          cfg.options.scales={x:{type:'linear',title:{display:true,text:xLabel}},y:{beginAtZero:true,title:{display:true,text:'Vulnerability Rate'}}};
+        }
+        return new Chart(document.getElementById(id),cfg);
+      }
+
+      const chartStars     = makeChart('scatterStars',     starsDataOrig,     starsField);
+      const chartForks     = makeChart('scatterForks',     forksDataOrig,     forksField);
+      const chartFollowers = makeChart('scatterFollowers', followersDataOrig, follField);
+
+      const langGroups = {};
+      langDataOrig.forEach(d=>{(langGroups[d.x] ||= []).push(d.y);});
+      const langLabels = Object.keys(langGroups);
+      const langAvg = langLabels.map(l=> langGroups[l].reduce((s,v)=>s+v,0)/langGroups[l].length );
+
+      new Chart(document.getElementById('scatterLang'), {type:'bar',data:{labels:langLabels,datasets:[{label:'Avg Vulnerability',data:langAvg,backgroundColor:'rgba(192,75,192,0.6)',borderColor:'rgba(192,75,192,1)',borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:langField}},y:{beginAtZero:true,title:{display:true,text:'Avg Vulnerability Rate'}}}}});
+
+      document.getElementById('starsFilter').addEventListener('change', e=>{const min=+e.target.value; chartStars.data.datasets[0].data = starsDataOrig.filter(d=>d.x>=min); chartStars.update();});
+      document.getElementById('forksFilter').addEventListener('change', e=>{const min=+e.target.value; chartForks.data.datasets[0].data = forksDataOrig.filter(d=>d.x>=min); chartForks.update();});
+      document.getElementById('followersFilter').addEventListener('change', e=>{const min=+e.target.value; chartFollowers.data.datasets[0].data = followersDataOrig.filter(d=>d.x>=min); chartFollowers.update();});
+    </script>
+
+  </div> <!-- /.container-fluid -->
+</body>
+
+</html>

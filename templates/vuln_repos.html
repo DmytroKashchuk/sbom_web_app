@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Repositories for Vulnerability {{ vuln_id }}</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+  {% include 'navbar.html' %}
+  <div class="container my-4">
+    <h1>Repositories affected by Vulnerability {{ vuln_id }}</h1>
+    <table class="table table-striped table-hover">
+      <thead>
+        <tr>
+          <th>Organization</th>
+          <th>Repository</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rec in records %}
+        <tr>
+          <td><a href="{{ url_for('repos', profile=rec['organization']) }}">{{ rec['organization'] }}</a></td>
+          <td>{{ rec['repository'] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

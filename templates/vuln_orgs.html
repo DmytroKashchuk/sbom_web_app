@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Organizations affected by {{ vuln_id }}</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator_simple.min.css" rel="stylesheet">
+  <script src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
+  <style>
+    body{padding:20px}
+    .tabulator .tabulator-col{cursor:pointer;}
+  </style>
+</head>
+<body>
+  {% include 'navbar.html' %}
+  <div class="container-fluid">
+    <h1 class="mb-3">Organizations affected by {{ vuln_id }}</h1>
+    <div id="orgs-table"></div>
+  </div>
+  <script>
+    const data = {{ records|tojson }};
+    const cols = [];
+    {% for c in columns %}
+      cols.push({title: "{{ c }}", field: "{{ c }}", headerSort:true});
+    {% endfor %}
+
+    // Prettify company column if exists
+    const idx = cols.findIndex(c => c.field === 'global_company');
+    if(idx !== -1){
+      cols[idx].formatter = function(cell){
+        const d = cell.getData();
+        const val = cell.getValue() || '';
+        const ava = d.avatar_url || '';
+        const prof= d.github_profile_name || '';
+        const img = ava ? `<img src="${ava}" class="rounded-circle mr-2" style="width:20px;height:20px;object-fit:cover;vertical-align:middle;">` : '';
+        if(!prof){ return img + val; }
+        return img + `<a href="{{ url_for('repos', profile='') }}${prof}">${val}</a>`;
+      };
+    }
+
+    new Tabulator('#orgs-table', {
+      data,
+      columns: cols,
+      layout: 'fitDataStretch',
+      pagination:'local',
+      paginationSize:50,
+      height:'auto'
+    });
+  </script>
+</body>
+</html>

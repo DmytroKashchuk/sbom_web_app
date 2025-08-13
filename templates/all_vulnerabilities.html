@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>All Vulnerabilities</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet">
+  <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator_simple.min.css" rel="stylesheet">
+  <style>
+    body { padding-top: 70px; }
+  </style>
+</head>
+<body>
+  {% include 'navbar.html' %}
+  </nav>
+
+  <div class="container-fluid my-4">
+    <h1>All Vulnerabilities</h1>
+    <div id="vuln-table"></div>
+  </div>
+
+  <script src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
+  <!-- Inject data and columns as JSON -->
+  <script id="vuln-data" type="application/json">
+    {{ records|tojson|safe }}
+  </script>
+  <script id="vuln-cols" type="application/json">
+    {{ columns|tojson|safe }}
+  </script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const rawData = document.getElementById('vuln-data').textContent.trim();
+      const rawCols = document.getElementById('vuln-cols').textContent.trim();
+      const data = JSON.parse(rawData);
+      const cols = JSON.parse(rawCols);
+      console.log('Loaded vulnerabilities:', data.length);
+      const columnDefs = cols.map(col => ({ title: col, field: col, headerFilter: 'input' }));
+      new Tabulator(document.getElementById('vuln-table'), {
+        data: data,
+        layout: 'fitColumns',
+        columns: columnDefs,
+        pagination: 'local',
+        paginationSize: 50,
+        movableColumns: true,
+        resizableRows: true,
+      });
+    });
+  </script>
+  </script>
+</body>
+</html>

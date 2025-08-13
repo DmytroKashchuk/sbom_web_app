@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Repo Statistics</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <style>
+    body { background-color: #f8f9fa; }
+    .card-chart { height: 300px; }
+    .card-chart canvas { width: 100% !important; height: 100% !important; }
+  </style>
+</head>
+<body>
+  <!-- ...existing navbar with link to stats_repos... -->
+  <div class="container-fluid py-4">
+    <!-- Summary Statistics -->
+    <div class="row mb-4">
+      <div class="col-md-4">
+        <div class="card shadow-sm text-center">
+          <div class="card-body">
+            <h5 class="card-title text-primary">Total Organizations</h5>
+            <h2 class="text-primary">{{ total_orgs }}</h2>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card shadow-sm text-center">
+          <div class="card-body">
+            <h5 class="card-title text-success">With GitHub Profiles</h5>
+            <h2 class="text-success">{{ orgs_with_profiles }}</h2>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card shadow-sm text-center">
+          <div class="card-body">
+            <h5 class="card-title text-warning">Profiles with Zero Repos</h5>
+            <h2 class="text-warning">{{ orgs_zero_repos }}</h2>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <h1 class="mb-4">Top 10 Repositories</h1>
+    <div class="row">
+      <!-- Stars -->
+      <div class="col-md-4 mb-4">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-primary text-white">
+            <i class="fas fa-star mr-2"></i>Most Stars
+          </div>
+          <div class="card-body card-chart">
+            <canvas id="starsChart"></canvas>
+          </div>
+        </div>
+      </div>
+      <!-- Forks -->
+      <div class="col-md-4 mb-4">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-warning text-dark">
+            <i class="fas fa-code-branch mr-2"></i>Most Forks
+          </div>
+          <div class="card-body card-chart">
+            <canvas id="forksChart"></canvas>
+          </div>
+        </div>
+      </div>
+      <!-- Watchers -->
+      <div class="col-md-4 mb-4">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-success text-white">
+            <i class="fas fa-eye mr-2"></i>Most Watchers
+          </div>
+          <div class="card-body card-chart">
+            <canvas id="watchersChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- load FontAwesome for icons -->
+  <script src="https://kit.fontawesome.com/a076d05399.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const starsCtx    = document.getElementById('starsChart').getContext('2d');
+    const forksCtx    = document.getElementById('forksChart').getContext('2d');
+    const watchersCtx = document.getElementById('watchersChart').getContext('2d');
+
+    new Chart(starsCtx, {
+      type: 'bar',
+      data: {
+        labels: {{ stars_labels|tojson }},
+        datasets: [{ label: 'Stars',    data: {{ stars_data|tojson }},    backgroundColor: 'rgba(54, 162, 235, 0.6)' }]
+      },
+      options: { responsive:true, maintainAspectRatio:false }
+    });
+
+    new Chart(forksCtx, {
+      type: 'bar',
+      data: {
+        labels: {{ forks_labels|tojson }},
+        datasets: [{ label: 'Forks',    data: {{ forks_data|tojson }},    backgroundColor: 'rgba(255, 159, 64, 0.6)' }]
+      },
+      options: { responsive:true, maintainAspectRatio:false }
+    });
+
+    new Chart(watchersCtx, {
+      type: 'bar',
+      data: {
+        labels: {{ watchers_labels|tojson }},
+        datasets: [{ label: 'Watchers', data: {{ watchers_data|tojson }}, backgroundColor: 'rgba(75, 192, 192, 0.6)' }]
+      },
+      options: { responsive:true, maintainAspectRatio:false }
+    });
+  </script>
+</body>
+</html>

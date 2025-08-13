@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Zero-Library Repositories for {{ profile }}</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <!-- Tabulator CSS -->
+  <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet">
+  <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator_simple.min.css" rel="stylesheet">
+  <!-- Tabulator JS -->
+  <script src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  <style>
+    /* Custom horizontal scrollbar for Tabulator */
+    .tabulator {
+      border: 1px solid #dee2e6;
+    }
+    
+    .tabulator .tabulator-tableholder {
+      overflow-x: auto !important;
+      overflow-y: auto !important;
+    }
+    
+    /* Make horizontal scrollbar more visible */
+    .tabulator .tabulator-tableholder::-webkit-scrollbar {
+      height: 12px;
+    }
+    
+    .tabulator .tabulator-tableholder::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 6px;
+    }
+    
+    .tabulator .tabulator-tableholder::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 6px;
+    }
+    
+    .tabulator .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+    
+    /* Add some padding to make scrollbar more accessible */
+    #repos-table {
+      margin-bottom: 20px;
+    }
+    
+    /* Top scrollbar styling */
+    .top-scrollbar {
+      overflow-x: auto;
+      overflow-y: hidden;
+      margin-bottom: 5px;
+      border: 1px solid #dee2e6;
+      border-bottom: none;
+      background: #f8f9fa;
+    }
+    
+    .top-scrollbar-content {
+      height: 1px;
+      background: transparent;
+    }
+    
+    .top-scrollbar::-webkit-scrollbar {
+      height: 12px;
+    }
+    
+    .top-scrollbar::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 6px;
+    }
+    
+    .top-scrollbar::-webkit-scrollbar-thumb {
+      background: #007bff;
+      border-radius: 6px;
+    }
+    
+    .top-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  {% include 'navbar.html' %}
+  </nav>
+  <div class="container-fluid my-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h1>Zero-Library Repositories</h1>
+        <h2 class="text-muted">{{ profile }}</h2>
+      </div>
+      <div class="alert alert-info">
+        <strong>{{ records|length }}</strong> repositories with zero libraries found
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <a href="{{ url_for('repos', profile=profile) }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left mr-1"></i>Back to All Repos
+      </a>
+      <form class="form-inline" method="get">
+        <input type="hidden" name="sort_by" value="{{ sort_by }}">
+        <input type="hidden" name="order" value="{{ order }}">
+        {% for col in selected_cols %}
+        <input type="hidden" name="columns" value="{{ col }}">
+        {% endfor %}
+
+        <div class="input-group mr-2">
+          <input name="search" type="search" class="form-control" placeholder="Search repo" value="{{ search }}">
+          <div class="input-group-append">
+            <button class="btn btn-primary" type="submit"><i class="fas fa-search"></i></button>
+          </div>
+        </div>
+
+        <div class="dropdown">
+          <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="colsDropdown" data-toggle="dropdown">
+            Columns
+          </button>
+          <div class="dropdown-menu dropdown-menu-right p-3">
+            <input type="hidden" name="search" value="{{ search }}">
+            <input type="hidden" name="sort_by" value="{{ sort_by }}">
+            <input type="hidden" name="order" value="{{ order }}">
+            {% for col in all_columns if col!='organization' %}
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox"
+                     name="columns" id="col-{{ loop.index }}" value="{{ col }}"
+                     {% if col in selected_cols %}checked{% endif %}>
+              <label class="form-check-label" for="col-{{ loop.index }}">{{ col }}</label>
+            </div>
+            {% endfor %}
+            <div class="text-right mt-2">
+              <button class="btn btn-sm btn-primary" type="submit">Apply</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Top horizontal scrollbar -->
+    <div id="top-scrollbar" class="top-scrollbar" style="display: none;">
+      <div id="top-scrollbar-content" class="top-scrollbar-content"></div>
+    </div>
+    
+    <div id="repos-table"></div>
+    
+    <script>
+      var tableData = {{ records|tojson }};
+      // Define columns with link formatter for repository_name
+      var tableCols = [
+        {% for col in columns %}
+        {
+          title: "{{ col }}",
+          field: "{{ col }}",
+          hozAlign: "left",
+          headerSort: true
+          {% if col=='repository_name' %},
+          formatter: function(cell) {
+            const repo = cell.getValue();
+            const org = cell.getRow().getData().organization;
+            return `<a href="/libs/${org}/${repo}">${repo}</a>`;
+          }
+          {% endif %}
+        },
+        {% endfor %}
+      ];
+      // Remove any duplicate columns
+      tableCols = tableCols.filter((c,i,a) => a.findIndex(x=>x.field===c.field)===i);
+
+      // Instantiate Tabulator
+      var table = new Tabulator("#repos-table", {
+        data: tableData,
+        columns: tableCols,
+        layout: "fitData",
+        pagination: "local",
+        paginationSize: 50,
+        theme: "bootstrap",
+        paginationSizeSelector: [25,50,100,250,500,true],
+        paginationButtonCount: 5,
+        virtualDom: true,
+        height: "auto",
+        minWidth: 300,
+        resizableColumns: true,
+        movableColumns: true,
+      });
+      
+      // Setup synchronized top scrollbar
+      function setupTopScrollbar() {
+        const topScrollbar = document.getElementById('top-scrollbar');
+        const topScrollbarContent = document.getElementById('top-scrollbar-content');
+        const tableHolder = document.querySelector('.tabulator-tableholder');
+        
+        if (tableHolder) {
+          // Set the content width to match the table's scroll width
+          topScrollbarContent.style.width = tableHolder.scrollWidth + 'px';
+          topScrollbar.style.display = 'block';
+          
+          // Sync top scrollbar with table
+          topScrollbar.addEventListener('scroll', function() {
+            tableHolder.scrollLeft = this.scrollLeft;
+          });
+          
+          // Sync table with top scrollbar
+          tableHolder.addEventListener('scroll', function() {
+            topScrollbar.scrollLeft = this.scrollLeft;
+          });
+        }
+      }
+      
+      // Setup the top scrollbar after table is built
+      table.on("tableBuilt", function() {
+        setTimeout(setupTopScrollbar, 100);
+      });
+      
+      // Re-setup on data updates
+      table.on("dataChanged", function() {
+        setTimeout(setupTopScrollbar, 100);
+      });
+    </script>
+  </div>
+</body>
+</html>

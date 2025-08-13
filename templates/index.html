@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fortune 1000 Dashboard</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  <!-- add Chart.js for barplot -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Tabulator CSS (use only one theme to avoid conflicts) -->
+  <!-- <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet"> -->
+  <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator_simple.min.css" rel="stylesheet">
+  <!-- Tabulator JS -->
+  <script src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
+  <style>
+    body {
+      background-color: #f8f9fa;
+      padding-top: 70px;
+      /* space for fixed navbar */
+    }
+
+    .table-responsive {
+      max-height: calc(100vh - 300px);
+      overflow-y: auto;
+    }
+
+    .table-responsive thead th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background-color: #343a40;
+      color: #fff;
+    }
+
+    .clickable {
+      cursor: pointer;
+    }
+
+    .card-clickable {
+      cursor: pointer;
+      transition: all .25s ease;
+      border: 2px solid transparent;
+    }
+
+    .card-clickable:hover,
+    .card-clickable:focus {
+      border-color: #ffc107;
+      box-shadow: 0 0.5rem 1rem rgba(255, 193, 7, .35);
+      transform: translateY(-3px);
+    }
+
+    .card-clickable .helper-text {
+      font-size: .70rem;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: #856404;
+      display: block;
+      margin-top: .25rem;
+    }
+
+    .pulse-ring {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 10px;
+      height: 10px;
+      background: #ffc107;
+      border-radius: 50%;
+      box-shadow: 0 0 0 0 rgba(255, 193, 7, .7);
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(255, 193, 7, .7);
+      }
+
+      70% {
+        box-shadow: 0 0 0 12px rgba(255, 193, 7, 0);
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+      }
+    }
+
+    /* Ensure Tabulator header is on top and clickable */
+    #index-table .tabulator-header {
+      position: relative;
+      z-index: 5;
+      pointer-events: auto;
+    }
+
+    .tabulator .tabulator-col {
+      cursor: pointer;
+    }
+
+    /* Pretty stat cards */
+    .stat-card {
+      border: 0;
+      border-radius: .75rem;
+      overflow: hidden;
+      transition: transform .2s ease, box-shadow .2s ease;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 .8rem 2rem rgba(0, 0, 0, .12);
+    }
+
+    .stat-card .card-body {
+      padding: 1.25rem 1rem;
+    }
+
+    .stat-label {
+      font-size: .85rem;
+      letter-spacing: .02em;
+      opacity: .9;
+      margin-bottom: .35rem;
+    }
+
+    .stat-value {
+      font-weight: 700;
+      font-size: 1.8rem;
+      line-height: 1;
+    }
+
+    .stat-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .08);
+    }
+
+    .bg-soft-primary {
+      background: linear-gradient(135deg, rgba(13, 110, 253, .10), rgba(13, 110, 253, .02));
+    }
+
+    .bg-soft-success {
+      background: linear-gradient(135deg, rgba(25, 135, 84, .10), rgba(25, 135, 84, .02));
+    }
+
+    .bg-soft-warning {
+      background: linear-gradient(135deg, rgba(255, 193, 7, .15), rgba(255, 193, 7, .04));
+    }
+
+    .bg-soft-info {
+      background: linear-gradient(135deg, rgba(13, 202, 240, .12), rgba(13, 202, 240, .03));
+    }
+
+    .bg-soft-secondary {
+      background: linear-gradient(135deg, rgba(108, 117, 125, .10), rgba(108, 117, 125, .02));
+    }
+  </style>
+</head>
+
+<body>
+  {% include 'navbar.html' %}
+  <div class="container-fluid py-4">
+    <!-- Summary Statistics -->
+    <div class="row mb-4">
+      <!-- Total Organizations -->
+      <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
+        <div class="card stat-card bg-soft-primary">
+          <div class="card-body d-flex align-items-center justify-content-between">
+            <div>
+              <div class="stat-label text-primary">Total Organizations</div>
+              <div class="stat-value text-primary">{{ total_orgs }}</div>
+            </div>
+            <div class="stat-icon bg-primary text-white"><i class="fas fa-building"></i></div>
+          </div>
+        </div>
+      </div>
+      <!-- With GitHub Profiles -->
+      <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
+        <div class="card stat-card bg-soft-success">
+          <div class="card-body d-flex align-items-center justify-content-between">
+            <div>
+              <div class="stat-label text-success">With GitHub Profiles</div>
+              <div class="stat-value text-success">{{ orgs_with_profiles }}</div>
+            </div>
+            <div class="stat-icon bg-success text-white"><i class="fas fa-user-check"></i></div>
+          </div>
+        </div>
+      </div>
+      <!-- Profiles with Zero Repos (clickable) -->
+      <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
+        <div class="card stat-card bg-soft-warning card-clickable" tabindex="0" role="button" data-toggle="modal" data-target="#zeroRepoProfilesModal" aria-controls="zeroRepoProfilesModal" aria-label="View profiles with zero repositories">
+          <span class="pulse-ring" aria-hidden="true"></span>
+          <div class="card-body d-flex align-items-center justify-content-between">
+            <div>
+              <div class="stat-label text-warning mb-1">Profiles with Zero Repos</div>
+              <div class="stat-value text-warning mb-0">{{ orgs_zero_repos }}</div>
+              <span class="helper-text d-block mt-1"><i class="fas fa-mouse-pointer mr-1"></i>Click to view list</span>
+            </div>
+            <div class="stat-icon bg-warning text-white"><i class="fas fa-user-slash"></i></div>
+          </div>
+        </div>
+      </div>
+      <!-- Total Repos -->
+      <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
+        <div class="card stat-card bg-soft-info">
+          <div class="card-body d-flex align-items-center justify-content-between">
+            <div>
+              <div class="stat-label text-info">Total Repos</div>
+              <div class="stat-value text-info">{{ total_repos }}</div>
+            </div>
+            <div class="stat-icon bg-info text-white"><i class="fas fa-database"></i></div>
+          </div>
+        </div>
+      </div>
+      <!-- Analyzed Repos -->
+      <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
+        <div class="card stat-card bg-soft-secondary">
+          <div class="card-body d-flex align-items-center justify-content-between">
+            <div>
+              <div class="stat-label text-secondary">Analyzed Repos</div>
+              <div class="stat-value text-secondary">{{ total_analyzed_repos }}</div>
+            </div>
+            <div class="stat-icon bg-secondary text-white"><i class="fas fa-search"></i></div>
+          </div>
+        </div>
+      </div>
+      <!-- Removed: Repos with zero Libs card -->
+    </div>
+
+    <!-- Statistics Section -->
+    <div class="row mb-4">
+      <div class="col-md-4">
+        <div class="card shadow-sm">
+          <div class="card-header bg-primary text-white">
+            <i class="fas fa-code-branch mr-2"></i>Most Repositories
+          </div>
+          <div class="card-body p-0">
+            <table class="table table-sm mb-0">
+              <tbody>
+                {% for org, count in org_repo_counts.items() %}
+                <tr>
+                  <td>
+                    {% set avatar = avatar_url_map.get(org) if avatar_url_map is defined else None %}
+                    {% if avatar %}
+                      <img src="{{ avatar }}" alt="{{ org }}" class="rounded-circle mr-1" style="width:18px;height:18px;object-fit:cover;vertical-align:middle;">
+                    {% endif %}
+                    <a href="{{ url_for('repos', profile=org) }}">{{ org }}</a>
+                  </td>
+                  <td class="text-right">{{ count }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card shadow-sm">
+          <div class="card-header bg-warning text-dark">
+            <i class="fas fa-star mr-2"></i>Most Stars
+          </div>
+          <div class="card-body p-0">
+            <table class="table table-sm mb-0">
+              <tbody>
+                {% for org, count in org_star_counts.items() %}
+                <tr>
+                  <td>
+                    {% set avatar = avatar_url_map.get(org) if avatar_url_map is defined else None %}
+                    {% if avatar %}
+                      <img src="{{ avatar }}" alt="{{ org }}" class="rounded-circle mr-1" style="width:18px;height:18px;object-fit:cover;vertical-align:middle;">
+                    {% endif %}
+                    <a href="{{ url_for('repos', profile=org) }}">{{ org }}</a>
+                  </td>
+                  <td class="text-right">{{ count }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card shadow-sm">
+          <div class="card-header bg-success text-white">
+            <i class="fas fa-code mr-2"></i>Top Languages
+          </div>
+          <div class="card-body p-0">
+            <table class="table table-sm mb-0">
+              <tbody>
+                {% for lang, count in top_languages %}
+                <tr>
+                  <td><a href="{{ url_for('orgs_by_language', language=lang) }}">{{ lang }}</a></td>
+                  <td class="text-right">{{ count }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top 10 Countries Barplot and SIC Industries Charts -->
+    <div class="row mb-4">
+      <div class="col-md-4">
+        <div class="card shadow-sm">
+          <div class="card-header bg-info text-white">
+            <i class="fas fa-flag mr-2"></i>Top 10 Countries by Profiles
+          </div>
+          <div class="card-body p-0">
+            <canvas id="countriesBar" style="height:400px;"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="card shadow-sm">
+          <div class="card-header bg-info text-white">
+            <i class="fas fa-flag mr-2"></i>Top 10 SIC Industries
+          </div>
+          <div class="card-body p-0">
+            <canvas id="SICBar" style="height:400px;"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <div class="card shadow-sm">
+          <div class="card-header bg-success text-white">
+            <i class="fas fa-code-branch mr-2"></i>Top 10 SIC by Total Repos
+          </div>
+          <div class="card-body p-0">
+            <canvas id="SICReposBar" style="height:400px;"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Data Table -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-light d-flex justify-content-start align-items-center">
+        <h2 class="mb-0"><i class="fas fa-chart-line mr-2"></i>|</h2>
+        <!-- Columns dropdown -->
+        <div class="dropdown">
+          <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="columnsDropdown"
+            data-toggle="dropdown">
+            Columns
+          </button>
+          <form class="dropdown-menu p-3" method="get" id="columnsForm">
+            <!-- preserve search/sort in hidden fields -->
+            <input type="hidden" name="search" value="{{ search }}">
+            <input type="hidden" name="sort_by" value="{{ sort_by }}">
+            <input type="hidden" name="order" value="{{ order }}">
+            {% for col in all_columns %}
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="columns" value="{{ col }}" id="col-{{ loop.index }}"
+                {% if col in selected_cols %}checked{% endif %}>
+              <label class="form-check-label" for="col-{{ loop.index }}">{{ col }}</label>
+            </div>
+            {% endfor %}
+            <div class="text-right mt-2">
+              <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <div class="card-body">
+        <!-- Filter form -->
+        <form class="form-inline mb-3" method="get">
+          <input type="hidden" name="sort_by" value="{{ sort_by }}">
+          <input type="hidden" name="order" value="{{ order }}">
+          {% for col in selected_cols %}
+          <input type="hidden" name="columns" value="{{ col }}">
+          {% endfor %}
+          <div class="input-group w-100">
+            <input name="search" type="search" class="form-control" placeholder="Search company" value="{{ search }}">
+            <div class="input-group-append">
+              <button class="btn btn-primary" type="submit"><i class="fas fa-search"></i> Filter</button>
+            </div>
+          </div>
+        </form>
+        <!-- replaced server-rendered table with Tabulator -->
+        <div id="index-table"></div>
+      </div>
+    </div>
+  </div>
+  <!-- render barplot -->
+  <script>
+    const countryLabels = {{ top_countries| map(attribute = 0) | list | tojson }};
+    const countryCounts = {{ top_countries| map(attribute = 1) | list | tojson }};
+
+    new Chart(document.getElementById('countriesBar'), {
+      type: 'bar',
+      data: {
+        labels: countryLabels,
+        datasets: [{
+          label: 'Profiles',
+          data: countryCounts,
+          backgroundColor: 'rgba(54, 162, 235, 0.6)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,   // honor fixed canvas height
+        scales: {
+          x: { title: { display: true, text: 'Country' } },
+          y: { beginAtZero: true, title: { display: true, text: 'Count' } }
+        }
+      }
+    });
+  </script>
+
+  <script>
+  const sicLabels     = {{ top_sic | map(attribute=0) | list | tojson }};
+  const totalCounts   = {{ top_sic | map(attribute=1) | list | tojson }};
+  const profileCounts = {{ top_sic_profiles | tojson }};
+
+  new Chart(document.getElementById('SICBar'), {
+    type: 'bar',
+    data: {
+      labels: sicLabels,
+      datasets: [
+        {
+          label: 'Total Companies',
+          data: totalCounts,
+          backgroundColor: 'rgba(153, 102, 255, 0.6)',
+          borderColor:     'rgba(153, 102, 255, 1)',
+          borderWidth: 1
+        },
+        {
+          label: 'With GitHub Profile',
+          data: profileCounts,
+          backgroundColor: 'rgba(54, 162, 235, 0.6)',
+          borderColor:     'rgba(54, 162, 235, 1)',
+          borderWidth: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { title: { display: true, text: 'SIC Code' } },
+        y: { beginAtZero: true, title: { display: true, text: 'Count' } }
+      }
+    }
+  });
+</script>
+
+  <!-- New SIC Repos Chart -->
+  <script>
+    const sicReposLabels = {{ top_sic | map(attribute=0) | list | tojson }};
+    const sicReposCounts = {{ top_sic_repos | tojson }};
+
+    new Chart(document.getElementById('SICReposBar'), {
+      type: 'bar',
+      data: {
+        labels: sicReposLabels,
+        datasets: [{
+          label: 'Total Repositories',
+          data: sicReposCounts,
+          backgroundColor: 'rgba(75, 192, 192, 0.6)',
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { title: { display: true, text: 'SIC Code' } },
+          y: { beginAtZero: true, title: { display: true, text: 'Number of Repositories' } }
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top'
+          }
+        }
+      }
+    });
+  </script>
+
+  <!-- Tabulator init for index table -->
+  <script>
+    var indexData = {{ records| tojson }};
+    var indexCols = [];
+    var repoUrlPrefix = "{{ url_for('repos', profile='') }}"; // safe prefix for repo links
+    {% for col in columns %}
+    var colDef = {title:"{{ col }}", field:"{{ col }}", headerSort:true, sorter:"string"};
+    {% if col == 'global_company' %}
+    colDef.formatter = function(cell){
+      var d   = cell.getData();
+      var prof= d.github_profile_name || '';
+      var val = cell.getValue() || '';
+      var ava = d.avatar_url || '';
+      var img = ava ? '<img src="'+ava+'" alt="'+val+'" class="rounded-circle mr-2" style="width:20px;height:20px;object-fit:cover;vertical-align:middle;">' : '';
+      if(!prof){ return img + val; }
+      return img + '<a href="'+repoUrlPrefix+prof+'">'+val+'</a>';
+    };
+    {% elif col == 'github_profile_name' %}
+    colDef.formatter = function(cell){
+      var v = cell.getValue();
+      if(!v){ return ''; }
+      return '<a href="https://github.com/' + v + '" target="_blank" rel="noopener">' + v + '</a>';
+    };
+    {% endif %}
+    indexCols.push(colDef);
+    {% endfor %}
+
+    // remove duplicates just in case
+    indexCols = indexCols.filter((c, i, a) => a.findIndex(x => x.field === c.field) === i);
+
+    // Assign numeric sorter to numeric-looking columns (simple detection)
+    const sample = indexData.slice(0, 100);
+    indexCols = indexCols.map(col => {
+      if(col.field === 'global_company') return col; // keep string
+      const isNumeric = sample.every(r => {
+        const v = r[col.field];
+        if(v === null || v === undefined || v === '') return true;
+        const s = String(v).replace(/[,\s]/g, '');
+        return s !== '' && !isNaN(+s);
+      });
+      if(isNumeric){ col.sorter = 'number'; col.hozAlign = col.hozAlign || 'right'; }
+      return col;
+    });
+
+    const table = new Tabulator("#index-table", {
+      data: indexData,
+      columns: indexCols,
+      layout: "fitDataStretch",
+      pagination: "local",
+      paginationSize: 50,
+      paginationSizeSelector: [50, 100, 250, 500, true],
+      paginationButtonCount: 5,
+      virtualDom: true,
+      height: "auto",
+      columnHeaderSortMulti: true,
+      columnDefaults: { headerSort: true },
+    });
+
+    // Fallback: toggle sort on header click even if default handler is blocked by CSS
+    table.on('columnHeaderClick', function(column){
+      try{
+        const current = table.getSorters();
+        const isSame  = current.length && current[0].field === column.getField();
+        const dir     = isSame && current[0].dir === 'asc' ? 'desc' : 'asc';
+        table.setSort([{column: column, dir: dir}]);
+      } catch(e){ console.warn('Manual sort failed', e); }
+    });
+
+    console.log('Tabulator version', Tabulator.version);
+  </script>
+
+  <!-- Zero Repo Profiles Tabulator Init -->
+  <script>
+    const zeroRepoProfilesData = {{ zero_repo_profiles | tojson }};
+    const repoUrlPrefixModal = "{{ url_for('repos', profile='') }}";
+    $('#zeroRepoProfilesModal').on('shown.bs.modal', function(){
+      if(!window.zeroRepoProfilesTable){
+        window.zeroRepoProfilesTable = new Tabulator('#zero-repo-profiles-table', {
+          data: zeroRepoProfilesData,
+          layout: 'fitDataStretch',
+          columns:[
+            {title:'', field:'avatar_url', width:36, headerSort:false, formatter:function(cell){
+              var url = cell.getValue();
+              if(!url){ return ''; }
+              return '<img src="'+url+'" class="rounded-circle" style="width:24px;height:24px;object-fit:cover;" alt="avatar">';
+            }},
+            {title:'Company', field:'global_company', formatter:'link', formatterParams:function(cell){
+                const row = cell.getRow().getData();
+                if(row.github_profile_name){
+                  return { url: repoUrlPrefixModal + row.github_profile_name, label: row.global_company };
+                }
+                return { url:'#', label: row.global_company };
+            }},
+            {title:'GitHub Profile', field:'github_profile_name', formatter:function(cell){
+                var v = cell.getValue();
+                if(!v){ return ''; }
+                return '<a href="https://github.com/' + v + '" target="_blank" rel="noopener">' + v + '</a>';
+            }},
+            {title:'Country', field:'country'},
+            {title:'SIC', field:'sic'},
+          ],
+          pagination:'local',
+          paginationSize:25,
+          paginationSizeSelector:[25,50,100,true],
+          height:'60vh',
+          placeholder:'No zero-repo profiles found'
+        });
+      }
+    });
+  </script>
+</body>
+
+</html>
