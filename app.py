@@ -763,6 +763,6 @@ def vuln_orgs(vuln_id):
     return render_template('vuln_orgs.html', vuln_id=vuln_id, records=records, columns=columns)
 
 if __name__=='__main__':
-    app.run(host='127.0.0.1', port=7777, debug=True)
+    app.run(host='0.0.0.0', port=80, debug=True)
 
 
