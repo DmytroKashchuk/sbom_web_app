@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Forbes Global 2000 Dashboard</title>
+  <title>Fortune 1000 Dashboard</title>
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
   <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
   <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
@@ -99,67 +99,6 @@
     .tabulator .tabulator-col {
       cursor: pointer;
     }
-
-    /* Pretty stat cards */
-    .stat-card {
-      border: 0;
-      border-radius: .75rem;
-      overflow: hidden;
-      transition: transform .2s ease, box-shadow .2s ease;
-    }
-
-    .stat-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 .8rem 2rem rgba(0, 0, 0, .12);
-    }
-
-    .stat-card .card-body {
-      padding: 1.25rem 1rem;
-    }
-
-    .stat-label {
-      font-size: .85rem;
-      letter-spacing: .02em;
-      opacity: .9;
-      margin-bottom: .35rem;
-    }
-
-    .stat-value {
-      font-weight: 700;
-      font-size: 1.8rem;
-      line-height: 1;
-    }
-
-    .stat-icon {
-      width: 42px;
-      height: 42px;
-      border-radius: 50%;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.1rem;
-      box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .08);
-    }
-
-    .bg-soft-primary {
-      background: linear-gradient(135deg, rgba(13, 110, 253, .10), rgba(13, 110, 253, .02));
-    }
-
-    .bg-soft-success {
-      background: linear-gradient(135deg, rgba(25, 135, 84, .10), rgba(25, 135, 84, .02));
-    }
-
-    .bg-soft-warning {
-      background: linear-gradient(135deg, rgba(255, 193, 7, .15), rgba(255, 193, 7, .04));
-    }
-
-    .bg-soft-info {
-      background: linear-gradient(135deg, rgba(13, 202, 240, .12), rgba(13, 202, 240, .03));
-    }
-
-    .bg-soft-secondary {
-      background: linear-gradient(135deg, rgba(108, 117, 125, .10), rgba(108, 117, 125, .02));
-    }
   </style>
 </head>
 
@@ -168,69 +107,57 @@
   <div class="container-fluid py-4">
     <!-- Summary Statistics -->
     <div class="row mb-4">
-      <!-- Total Organizations -->
       <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
-        <div class="card stat-card bg-soft-primary">
-          <div class="card-body d-flex align-items-center justify-content-between">
-            <div>
-              <div class="stat-label text-primary">Total Organizations</div>
-              <div class="stat-value text-primary">2000</div>
-            </div>
-            <div class="stat-icon bg-primary text-white"><i class="fas fa-building"></i></div>
+        <div class="card shadow-sm text-center">
+          <div class="card-body">
+            <h5 class="card-title text-primary">Total Organizations</h5>
+            <h2 class="text-primary">{{ total_orgs }}</h2>
           </div>
         </div>
       </div>
-      <!-- With GitHub Profiles -->
       <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
-        <div class="card stat-card bg-soft-success">
-          <div class="card-body d-flex align-items-center justify-content-between">
-            <div>
-              <div class="stat-label text-success">With GitHub Profiles</div>
-              <div class="stat-value text-success">{{ orgs_with_profiles }}</div>
-            </div>
-            <div class="stat-icon bg-success text-white"><i class="fas fa-user-check"></i></div>
+        <div class="card shadow-sm text-center">
+          <div class="card-body">
+            <h5 class="card-title text-success">With GitHub Profiles</h5>
+            <h2 class="text-success">{{ orgs_with_profiles }}</h2>
           </div>
         </div>
       </div>
-      <!-- Profiles with Zero Repos (clickable) -->
       <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
-        <div class="card stat-card bg-soft-warning card-clickable" tabindex="0" role="button" data-toggle="modal" data-target="#zeroRepoProfilesModal" aria-controls="zeroRepoProfilesModal" aria-label="View profiles with zero repositories">
+        <div class="card shadow-sm text-center card-clickable" tabindex="0" role="button" data-toggle="modal" data-target="#zeroRepoProfilesModal" aria-controls="zeroRepoProfilesModal" aria-label="View profiles with zero repositories">
           <span class="pulse-ring" aria-hidden="true"></span>
-          <div class="card-body d-flex align-items-center justify-content-between">
-            <div>
-              <div class="stat-label text-warning mb-1">Profiles with Zero Repos</div>
-              <div class="stat-value text-warning mb-0">{{ orgs_zero_repos }}</div>
-              <span class="helper-text d-block mt-1"><i class="fas fa-mouse-pointer mr-1"></i>Click to view list</span>
-            </div>
-            <div class="stat-icon bg-warning text-white"><i class="fas fa-user-slash"></i></div>
+          <div class="card-body">
+            <h5 class="card-title text-warning mb-1">Profiles with Zero Repos</h5>
+            <h2 class="text-warning mb-0">{{ orgs_zero_repos }}</h2>
+            <span class="helper-text"><i class="fas fa-mouse-pointer mr-1"></i>Click to view list</span>
+            <button type="button" class="btn btn-sm btn-outline-warning mt-2" data-toggle="modal" data-target="#zeroRepoProfilesModal">Open List</button>
           </div>
         </div>
       </div>
-      <!-- Total Repos -->
       <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
-        <div class="card stat-card bg-soft-info">
-          <div class="card-body d-flex align-items-center justify-content-between">
-            <div>
-              <div class="stat-label text-info">Total Repos</div>
-              <div class="stat-value text-info">{{ total_repos }}</div>
-            </div>
-            <div class="stat-icon bg-info text-white"><i class="fas fa-database"></i></div>
+        <div class="card shadow-sm text-center">
+          <div class="card-body">
+            <h5 class="card-title text-info">Total Repos</h5>
+            <h2 class="text-info">{{ total_repos }}</h2>
           </div>
         </div>
       </div>
-      <!-- Analyzed Repos -->
       <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
-        <div class="card stat-card bg-soft-secondary">
-          <div class="card-body d-flex align-items-center justify-content-between">
-            <div>
-              <div class="stat-label text-secondary">Analyzed Repos</div>
-              <div class="stat-value text-secondary">{{ total_analyzed_repos }}</div>
-            </div>
-            <div class="stat-icon bg-secondary text-white"><i class="fas fa-search"></i></div>
+        <div class="card shadow-sm text-center">
+          <div class="card-body">
+            <h5 class="card-title text-secondary">Analyzed Repos</h5>
+            <h2 class="text-secondary">{{ total_analyzed_repos }}</h2>
           </div>
         </div>
       </div>
-      <!-- Removed: Repos with zero Libs card -->
+      <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
+        <div class="card shadow-sm text-center">
+          <div class="card-body">
+            <h5 class="card-title text-secondary">Repos with zero Libs</h5>
+            <h2 class="text-secondary">{{ repos_with_zero_libs }}</h2>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Statistics Section -->
