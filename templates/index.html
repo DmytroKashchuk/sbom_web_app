@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Forbes 2000 Dashboard</title>
+  <title>Fortune 1000 Dashboard</title>
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
   <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
   <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
@@ -99,58 +99,176 @@
     .tabulator .tabulator-col {
       cursor: pointer;
     }
+
+    /* === Enhanced Summary Stat Cards === */
+    .stats-row .stat-card {
+      position: relative;
+      border: 0;
+      border-radius: 0.85rem;
+      overflow: hidden;
+      color: #fff;
+      height: 100%;
+      box-shadow: 0 0.35rem 0.75rem rgba(0, 0, 0, .08);
+    }
+
+    .stats-row .stat-card .icon-wrap {
+      position: absolute;
+      top: -10px;
+      right: -10px;
+      width: 90px;
+      height: 90px;
+      opacity: .15;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .stats-row .stat-card .icon-wrap i {
+      font-size: 64px;
+    }
+
+    .stats-row .stat-card h6 {
+      font-size: .65rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin: 0 0 .35rem;
+      font-weight: 600;
+      opacity: .9;
+    }
+
+    .stats-row .stat-card .metric {
+      font-size: 1.9rem;
+      font-weight: 700;
+      line-height: 1;
+      margin: 0;
+    }
+
+    .stats-row .stat-card small.subline {
+      display: block;
+      font-size: .65rem;
+      letter-spacing: .05em;
+      opacity: .85;
+      margin-top: .35rem;
+    }
+
+    .stats-row .progress {
+      height: 4px;
+      margin-top: .65rem;
+      background: rgba(255, 255, 255, .25);
+    }
+
+    .stats-row .progress-bar {
+      background: #fff;
+    }
+
+    .bg-grad-blue {
+      background: linear-gradient(135deg, #1d65f2, #0d3fab);
+    }
+
+    .bg-grad-green {
+      background: linear-gradient(135deg, #28a745, #0d7b2b);
+    }
+
+    .bg-grad-amber {
+      background: linear-gradient(135deg, #ffb347, #ff7b00);
+    }
+
+    .bg-grad-cyan {
+      background: linear-gradient(135deg, #17a2b8, #085d69);
+    }
+
+    .bg-grad-slate {
+      background: linear-gradient(135deg, #6c757d, #343a40);
+    }
+
+    .stat-focus-ring:focus {
+      outline: none;
+      box-shadow: 0 0 0 .2rem rgba(255, 193, 7, .45);
+    }
+
+    @media (max-width: 575.98px) {
+      .stats-row .stat-card {
+        margin-bottom: 1rem;
+      }
+    }
   </style>
 </head>
 
 <body>
   {% include 'navbar.html' %}
   <div class="container-fluid py-4">
-    <!-- Summary Statistics -->
-    <div class="row mb-4">
-      <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
-        <div class="card shadow-sm text-center">
-          <div class="card-body">
-            <h5 class="card-title text-primary">Total Organizations</h5>
-            <h2 class="text-primary">2000</h2>
+    <!-- Summary Statistics (Enhanced) -->
+    <div class="row mb-4 stats-row">
+      <!-- Total Organizations -->
+      <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-4">
+        <div class="stat-card bg-grad-blue p-3 p-md-4">
+          <div class="icon-wrap"><i class="fas fa-building"></i></div>
+          <h6>Total Organizations</h6>
+          <p class="metric mb-1">{{ total_orgs }}</p>
+          <small class="subline">100% reference</small>
+          <div class="progress">
+            <div class="progress-bar" style="width:100%"></div>
           </div>
         </div>
       </div>
-      <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
-        <div class="card shadow-sm text-center">
-          <div class="card-body">
-            <h5 class="card-title text-success">With GitHub Profiles</h5>
-            <h2 class="text-success">{{ orgs_with_profiles }}</h2>
+      <!-- With GitHub Profiles -->
+      <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-4">
+        {% set pct_profiles = (orgs_with_profiles/total_orgs*100) if total_orgs else 0 %}
+        <div class="stat-card bg-grad-green p-3 p-md-4">
+          <div class="icon-wrap"><i class="fab fa-github"></i></div>
+          <h6>With GitHub Profiles</h6>
+          <p class="metric mb-1">{{ orgs_with_profiles }}</p>
+          <small class="subline">{{ '%.1f'|format(pct_profiles) }}% of orgs</small>
+          <div class="progress">
+            <div class="progress-bar" style="width:{{ pct_profiles }}%"></div>
           </div>
         </div>
       </div>
-      <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
-        <div class="card shadow-sm text-center card-clickable" tabindex="0" role="button" data-toggle="modal" data-target="#zeroRepoProfilesModal" aria-controls="zeroRepoProfilesModal" aria-label="View profiles with zero repositories">
-          <span class="pulse-ring" aria-hidden="true"></span>
-          <div class="card-body">
-            <h5 class="card-title text-warning mb-1">Profiles with Zero Repos</h5>
-            <h2 class="text-warning mb-0">{{ orgs_zero_repos }}</h2>
-            <span class="helper-text"><i class="fas fa-mouse-pointer mr-1"></i>Click to view list</span>
-            <button type="button" class="btn btn-sm btn-outline-warning mt-2" data-toggle="modal" data-target="#zeroRepoProfilesModal">Open List</button>
+      <!-- Profiles with Zero Repos (clickable) -->
+      <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-4">
+        {% set pct_zero = (orgs_zero_repos / orgs_with_profiles * 100) if orgs_with_profiles else 0 %}
+        <button type="button" class="stat-card bg-grad-amber p-3 p-md-4 w-100 text-left stat-focus-ring" data-toggle="modal" data-target="#zeroRepoProfilesModal" aria-label="Profiles with zero repositories {{ orgs_zero_repos }} which is {{ '%.1f'|format(pct_zero) }} percent of profiles">
+          <div class="icon-wrap"><i class="fas fa-box-open"></i></div>
+          <h6>Profiles With Zero Repos</h6>
+          <p class="metric mb-1 mb-md-0">{{ orgs_zero_repos }}</p>
+          <small class="subline">{{ '%.1f'|format(pct_zero) }}% of profiled orgs</small>
+          <div class="progress">
+            <div class="progress-bar" style="width:{{ pct_zero }}%"></div>
+          </div>
+        </button>
+      </div>
+      <!-- Total Repositories -->
+      <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-4">
+        {% set avg_repos = (total_repos/ orgs_with_profiles) if orgs_with_profiles else 0 %}
+        <div class="stat-card bg-grad-cyan p-3 p-md-4">
+          <div class="icon-wrap"><i class="fas fa-archive"></i></div>
+          <h6>Total Repos</h6>
+          <p class="metric mb-1">{{ total_repos }}</p>
+          <small class="subline">Avg {{ '%.1f'|format(avg_repos) }} per profile</small>
+          <div class="progress">
+            <div class="progress-bar" style="width:100%"></div>
           </div>
         </div>
       </div>
-      <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
-        <div class="card shadow-sm text-center">
-          <div class="card-body">
-            <h5 class="card-title text-info">Total Repos</h5>
-            <h2 class="text-info">{{ total_repos }}</h2>
+      <!-- Analyzed Repositories -->
+      <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-4">
+        {% set pct_analyzed = (total_analyzed_repos/ total_repos * 100) if total_repos else 0 %}
+        <div class="stat-card bg-grad-slate p-3 p-md-4">
+          <div class="icon-wrap"><i class="fas fa-search"></i></div>
+          <h6>Analyzed Repos</h6>
+          <p class="metric mb-1">{{ total_analyzed_repos }}</p>
+          <small class="subline">{{ '%.1f'|format(pct_analyzed) }}% coverage</small>
+          <div class="progress">
+            <div class="progress-bar" style="width:{{ pct_analyzed }}%"></div>
           </div>
         </div>
       </div>
-      <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
-        <div class="card shadow-sm text-center">
-          <div class="card-body">
-            <h5 class="card-title text-secondary">Analyzed Repos</h5>
-            <h2 class="text-secondary">{{ total_analyzed_repos }}</h2>
-          </div>
+      <!-- Spacer / Future Metric -->
+      <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-4 d-none d-xl-block">
+        <div class="stat-card bg-grad-blue p-3 p-md-4" style="opacity:.35; display:flex; align-items:center; justify-content:center;">
+          <small class="text-uppercase text-center" style="letter-spacing:.08em;">Add Metric</small>
         </div>
       </div>
-      
     </div>
 
     <!-- Statistics Section -->
@@ -168,7 +286,7 @@
                   <td>
                     {% set avatar = avatar_url_map.get(org) if avatar_url_map is defined else None %}
                     {% if avatar %}
-                      <img src="{{ avatar }}" alt="{{ org }}" class="rounded-circle mr-1" style="width:18px;height:18px;object-fit:cover;vertical-align:middle;">
+                    <img src="{{ avatar }}" alt="{{ org }}" class="rounded-circle mr-1" style="width:18px;height:18px;object-fit:cover;vertical-align:middle;">
                     {% endif %}
                     <a href="{{ url_for('repos', profile=org) }}">{{ org }}</a>
                   </td>
@@ -193,7 +311,7 @@
                   <td>
                     {% set avatar = avatar_url_map.get(org) if avatar_url_map is defined else None %}
                     {% if avatar %}
-                      <img src="{{ avatar }}" alt="{{ org }}" class="rounded-circle mr-1" style="width:18px;height:18px;object-fit:cover;vertical-align:middle;">
+                    <img src="{{ avatar }}" alt="{{ org }}" class="rounded-circle mr-1" style="width:18px;height:18px;object-fit:cover;vertical-align:middle;">
                     {% endif %}
                     <a href="{{ url_for('repos', profile=org) }}">{{ org }}</a>
                   </td>
@@ -268,8 +386,7 @@
         <h2 class="mb-0"><i class="fas fa-chart-line mr-2"></i>|</h2>
         <!-- Columns dropdown -->
         <div class="dropdown">
-          <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="columnsDropdown"
-            data-toggle="dropdown">
+          <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="columnsDropdown" data-toggle="dropdown">
             Columns
           </button>
           <form class="dropdown-menu p-3" method="get" id="columnsForm">
@@ -482,43 +599,81 @@
 
   <!-- Zero Repo Profiles Tabulator Init -->
   <script>
-    const zeroRepoProfilesData = {{ zero_repo_profiles | tojson }};
+    // Zero Repo Profiles Modal Table Initialization (robust)
+    const zeroRepoProfilesDataEl = document.getElementById('zeroRepoProfilesData');
+    const zeroRepoProfilesData = zeroRepoProfilesDataEl ? JSON.parse(zeroRepoProfilesDataEl.textContent || '[]') : [];
+    if(!zeroRepoProfilesDataEl){ console.error('zeroRepoProfilesData element not found when initializing.'); }
+    console.log('ZeroRepoProfiles length:', Array.isArray(zeroRepoProfilesData)? zeroRepoProfilesData.length : 'not-array', zeroRepoProfilesData);
     const repoUrlPrefixModal = "{{ url_for('repos', profile='') }}";
-    $('#zeroRepoProfilesModal').on('shown.bs.modal', function(){
-      if(!window.zeroRepoProfilesTable){
-        window.zeroRepoProfilesTable = new Tabulator('#zero-repo-profiles-table', {
-          data: zeroRepoProfilesData,
-          layout: 'fitDataStretch',
-          columns:[
-            {title:'', field:'avatar_url', width:36, headerSort:false, formatter:function(cell){
-              var url = cell.getValue();
-              if(!url){ return ''; }
-              return '<img src="'+url+'" class="rounded-circle" style="width:24px;height:24px;object-fit:cover;" alt="avatar">';
-            }},
-            {title:'Company', field:'global_company', formatter:'link', formatterParams:function(cell){
-                const row = cell.getRow().getData();
-                if(row.github_profile_name){
-                  return { url: repoUrlPrefixModal + row.github_profile_name, label: row.global_company };
-                }
-                return { url:'#', label: row.global_company };
-            }},
-            {title:'GitHub Profile', field:'github_profile_name', formatter:function(cell){
-                var v = cell.getValue();
-                if(!v){ return ''; }
-                return '<a href="https://github.com/' + v + '" target="_blank" rel="noopener">' + v + '</a>';
-            }},
-            {title:'Country', field:'country'},
-            {title:'SIC', field:'sic'},
-          ],
-          pagination:'local',
-          paginationSize:25,
-          paginationSizeSelector:[25,50,100,true],
-          height:'60vh',
-          placeholder:'No zero-repo profiles found'
-        });
+
+    function buildZeroRepoTable(){
+      const holder = document.querySelector('#zero-repo-profiles-table');
+      if(!Array.isArray(zeroRepoProfilesData)){
+        console.warn('zeroRepoProfilesData not an array:', zeroRepoProfilesData);
+        if(holder) holder.innerHTML = '<div class="p-4 text-center text-danger small">Data format error</div>';
+        return;
       }
+      if(!zeroRepoProfilesData.length){
+        if(holder) holder.innerHTML = '<div class="p-4 text-center text-muted small">No zero-repository profiles.</div>';
+        return;
+      }
+      if(window.zeroRepoProfilesTable){
+        window.zeroRepoProfilesTable.replaceData(zeroRepoProfilesData);
+        window.zeroRepoProfilesTable.redraw(true);
+        return;
+      }
+      window.zeroRepoProfilesTable = new Tabulator('#zero-repo-profiles-table', {
+        data: zeroRepoProfilesData,
+        layout: 'fitColumns',
+        height: '60vh',
+        index: 'github_profile_name',
+        columns: [
+          {title:'#', width:46, hozAlign:'center', headerSort:false, formatter:(cell)=> cell.getRow().getPosition(true)+1},
+          {title:'', field:'avatar_url', width:44, headerSort:false, formatter:(cell)=>{ const u=cell.getValue(); return u?`<img src="${u}" class="rounded-circle" style="width:28px;height:28px;object-fit:cover;" alt="avatar">`:'';}},
+          {title:'Company', field:'global_company', minWidth:170, formatter:(cell)=>{ const row=cell.getRow().getData(); const prof=row.github_profile_name; const name=cell.getValue()||''; return prof?`<a href="${repoUrlPrefixModal}${prof}">${name}</a>`:name; }},
+          {title:'GitHub Profile', field:'github_profile_name', minWidth:150, formatter:(cell)=>{ const v=cell.getValue(); return v?`<a href="https://github.com/${v}" target="_blank" rel="noopener">${v}</a>`:'';}},
+          {title:'Country', field:'country', width:110},
+          {title:'SIC', field:'sic', width:120},
+        ],
+        placeholder: 'No zero-repo profiles found',
+        pagination: 'local',
+        paginationSize: 25,
+        paginationSizeSelector: [25,50,100,true],
+      });
+    }
+
+    $('#zeroRepoProfilesModal').on('shown.bs.modal', function(){
+      buildZeroRepoTable();
+      setTimeout(()=>{ if(window.zeroRepoProfilesTable) window.zeroRepoProfilesTable.redraw(true); }, 120);
     });
+
+    if($('#zeroRepoProfilesModal').hasClass('show')){ buildZeroRepoTable(); }
   </script>
+
+  <!-- Insert Zero Repo Profiles Modal (missing) -->
+  <div class="modal fade" id="zeroRepoProfilesModal" tabindex="-1" role="dialog" aria-labelledby="zeroRepoProfilesLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+      <div class="modal-content">
+        <div class="modal-header bg-warning text-dark py-2">
+          <h5 class="modal-title" id="zeroRepoProfilesLabel"><i class="fas fa-box-open mr-2"></i>Profiles With Zero Repositories</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body p-2">
+          <div class="alert alert-warning mb-2 py-2 px-3 small">
+            <strong>Note:</strong> These organizations have a GitHub profile but no public repositories detected.
+          </div>
+          <div id="zero-repo-profiles-table" class="border rounded" style="min-height:300px;">
+            <div class="p-3 text-center text-muted small">Initializing table...</div>
+          </div>
+        </div>
+        <div class="modal-footer py-2">
+          <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 
 </html>

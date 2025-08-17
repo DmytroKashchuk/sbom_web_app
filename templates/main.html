@@ -93,6 +93,44 @@
       font-size: 0.9rem;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
+
+    /* === Responsive Vulnerability Mini Tables === */
+    .vuln-mini-table {margin-bottom:1rem;} /* legacy, unused now */
+
+    /* New Vulnerability Cards */
+    .vuln-card .card-header{font-size:.75rem; letter-spacing:.5px; font-weight:600;}
+    .vuln-card .list-group-item{display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:.45rem .6rem; border-color:rgba(0,0,0,.05);}
+    .vuln-card .list-group-item + .list-group-item{border-top:1px solid rgba(0,0,0,.05);}
+    .vuln-card img{width:22px; height:22px; object-fit:cover; border-radius:50%; margin-right:.45rem; flex-shrink:0;}
+    .vuln-card a{font-weight:500; color:#212529; text-decoration:none; max-width:135px; display:inline-block;}
+    .vuln-card a:hover{text-decoration:underline;}
+    .vuln-card .stats .badge{font-size:.55rem; font-weight:600; padding:.35em .45em; letter-spacing:.5px;}
+    .vuln-card .pct{font-size:.6rem;}
+    .progress.progress-thin{height:4px; border-radius:2px; background:rgba(0,0,0,.08);}
+    .progress.progress-thin .progress-bar{border-radius:2px;}
+    .badge-soft-danger{background:rgba(220,53,69,.12); color:#dc3545;}
+    .badge-soft-success{background:rgba(40,167,69,.12); color:#28a745;}
+    .badge-soft-warning{background:rgba(255,193,7,.18); color:#856404;}
+    .badge-soft-info{background:rgba(23,162,184,.15); color:#17a2b8;}
+    @media (min-width:576px){ .vuln-card a{max-width:140px;} }
+    @media (min-width:768px){ .vuln-card a{max-width:160px;} }
+    @media (min-width:1200px){ .vuln-card a{max-width:180px;} }
+
+    /* Remove old vuln-card heavy styling; introduce lightweight tabbed tables */
+    .vuln-tab-table{font-size:.85rem;}
+    .vuln-tab-table th, .vuln-tab-table td{padding:.32rem .45rem !important; line-height:1.05;}
+    .vuln-tab-table .company-name{line-height:1.05;}
+    .vuln-tab-table img{width:20px;height:20px;border-radius:50%;object-fit:cover;}
+    .nav-pills .nav-link{padding:.35rem .75rem; font-size:.7rem; font-weight:600; letter-spacing:.5px;}
+    .nav-pills .nav-link.active{box-shadow:0 0 0 .15rem rgba(0,123,255,.15);}    
+    .badge-soft-danger{background:rgba(220,53,69,.15);color:#c82333;}
+    .badge-soft-success{background:rgba(40,167,69,.18);color:#1e7e34;}
+    .badge-soft-warning{background:rgba(255,193,7,.25);color:#856404;}
+    .badge-soft-info{background:rgba(23,162,184,.2);color:#117a8b;}
+    .badge-soft-primary{background:rgba(0,123,255,.18);color:#0056b3;}
+
+    /* Add card header sizing for vuln boxes */
+    .vuln-grid .card-header{font-size:.7rem; letter-spacing:.5px;}
   </style>
   <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
@@ -105,6 +143,47 @@
 
 <body>
   {% include 'navbar.html' %}
+
+  {% macro vuln_simple_table(items, stats_map, company_map, avatar_map, pct_badge) %}
+  <div class="table-responsive mb-3">
+    <table class="table table-sm table-striped table-hover vuln-tab-table mb-0">
+      <thead class="thead-light">
+        <tr>
+          <th style="width:32px">#</th>
+          <th>Company</th>
+          <th class="text-center" title="Vulnerable Repositories">Vuln</th>
+          <th class="text-center" title="Non-Vulnerable Repositories">Safe</th>
+          <th class="text-center" title="% Vulnerable">%</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for org, pct in items.items() %}
+        <tr>
+          <td class="text-muted">{{ loop.index }}</td>
+          <td class="company-cell">
+            {% set avatar = avatar_map.get(org) if avatar_map is defined else None %}
+            {% if avatar %}<img src="{{ avatar }}" alt="{{ company_map[org] }}">{% endif %}
+            <a href="{{ url_for('repos', profile=org) }}" class="company-name" title="{{ company_map[org] }}">{{ company_map[org] }}</a>
+          </td>
+          <td class="text-center"><span class="badge badge-soft-danger">{{ stats_map[org]['vuln_repos'] }}</span></td>
+            <td class="text-center"><span class="badge badge-soft-success">{{ stats_map[org]['non_vuln_repos'] }}</span></td>
+          <td class="text-center"><span class="badge {{ pct_badge }}">{{ '%.1f'|format(pct) }}%</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endmacro %}
+  {% macro vuln_box(title, items, stats_map, company_map, avatar_map, pct_badge, header_class) %}
+  <div class="col-12 col-md-6 col-xl-3 mb-3 d-flex">
+    <div class="card shadow-sm border-0 w-100">
+      <div class="card-header py-2 text-center text-white {{ header_class }}"><small class="font-weight-bold">{{ title }}</small></div>
+      <div class="card-body p-0">
+        {{ vuln_simple_table(items, stats_map, company_map, avatar_map, pct_badge) }}
+      </div>
+    </div>
+  </div>
+  {% endmacro %}
 
   <div class="container-fluid my-4">
     <h1>Main Data</h1>
@@ -193,165 +272,23 @@
       </div>
     </div>
 
-    <!-- Vulnerabilities Section -->
-    <div class="border rounded p-3 mb-4">
+    <!-- Vulnerabilities Section (All tables visible) -->
+    <div class="border rounded p-3 mb-4 vuln-grid">
       <h2 class="mb-3">Vulnerabilities</h2>
       <form class="form-inline mb-3" method="get">
         <input type="hidden" name="search" value="{{ search }}">
         <input type="hidden" name="sort_by" value="{{ sort_by }}">
         <input type="hidden" name="order" value="{{ order }}">
-        {% for col in selected_cols %}
-        <input type="hidden" name="columns" value="{{ col }}">
-        {% endfor %}
-        <label for="threshold" class="mr-2">Min Repos:</label>
-        <input id="threshold" name="threshold" type="number" class="form-control mr-2" value="{{ threshold }}" min="0">
+        {% for col in selected_cols %}<input type="hidden" name="columns" value="{{ col }}">{% endfor %}
+        <label for="threshold" class="mr-2 small text-muted mb-0">Min Repos:</label>
+        <input id="threshold" name="threshold" type="number" class="form-control form-control-sm mr-2" value="{{ threshold }}" min="0" style="max-width:110px;">
         <button class="btn btn-primary btn-sm" type="submit">Apply</button>
       </form>
-      <div class="row mb-4">
-        <!-- Top 10 Highest % -->
-        <div class="col-md-3">
-          <div class="card shadow-sm">
-            <div class="card-header bg-danger text-white">
-              Most Vulnerable TECH Companies %
-            </div>
-            <div class="card-body p-0">
-              <table class="table table-sm mb-0">
-                <thead>
-                  <tr>
-                    <th>Company</th>
-                    <th class="text-center">Vuln</th>
-                    <th class="text-center">Safe</th>
-                    <th class="text-center">%</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for org, pct in most_vuln_tech_top10.items() %}
-                  <tr>
-                    <td>
-                      {% set avatar = avatar_url_map.get(org) if avatar_url_map is defined else None %}
-                      {% if avatar %}
-                        <img src="{{ avatar }}" alt="{{ global_company[org] }}" class="rounded-circle mr-1" style="width:18px;height:18px;object-fit:cover;vertical-align:middle;">
-                      {% endif %}
-                      <a href="{{ url_for('repos', profile=org) }}">{{ global_company[org] }}</a>
-                    </td>
-                    <td class="text-center">{{ tech_stats[org]['vuln_repos'] }}</td>
-                    <td class="text-center">{{ tech_stats[org]['non_vuln_repos'] }}</td>
-                    <td class="text-center">{{ "%.2f"|format(pct) }}%</td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-        <!-- Ranks 21–30 % -->
-        <div class="col-md-3">
-          <div class="card shadow-sm">
-            <div class="card-header bg-warning text-dark">
-              Least Vulnerable TECH Companies %
-            </div>
-            <div class="card-body p-0">
-              <table class="table table-sm mb-0">
-                <thead>
-                  <tr>
-                    <th>Company</th>
-                    <th class="text-center">Vuln</th>
-                    <th class="text-center">Safe</th>
-                    <th class="text-center">%</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for org, pct in least_vuln_tech_top10.items() %}
-                  <tr>
-                    <td>
-                      {% set avatar = avatar_url_map.get(org) if avatar_url_map is defined else None %}
-                      {% if avatar %}
-                        <img src="{{ avatar }}" alt="{{ global_company[org] }}" class="rounded-circle mr-1" style="width:18px;height:18px;object-fit:cover;vertical-align:middle;">
-                      {% endif %}
-                      <a href="{{ url_for('repos', profile=org) }}">{{ global_company[org] }}</a>
-                    </td>
-                    <td class="text-center">{{ least_tech_stats[org]['vuln_repos'] }}</td>
-                    <td class="text-center">{{ least_tech_stats[org]['non_vuln_repos'] }}</td>
-                    <td class="text-center">{{ "%.2f"|format(pct) }}%</td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-        <!-- Top 10 Lowest % -->
-        <div class="col-md-3">
-          <div class="card shadow-sm">
-            <div class="card-header bg-success text-white">
-              Most Vulnerable NON-TECH Companies %
-            </div>
-            <div class="card-body p-0">
-              <table class="table table-sm mb-0">
-                <thead>
-                  <tr>
-                    <th>Company</th>
-                    <th class="text-center">Vuln</th>
-                    <th class="text-center">Safe</th>
-                    <th class="text-center">%</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for org, pct in most_vuln_non_tech_top10.items() %}
-                  <tr>
-                    <td>
-                      {% set avatar = avatar_url_map.get(org) if avatar_url_map is defined else None %}
-                      {% if avatar %}
-                        <img src="{{ avatar }}" alt="{{ global_company[org] }}" class="rounded-circle mr-1" style="width:18px;height:18px;object-fit:cover;vertical-align:middle;">
-                      {% endif %}
-                      <a href="{{ url_for('repos', profile=org) }}">{{ global_company[org] }}</a>
-                    </td>
-                    <td class="text-center">{{ non_tech_stats[org]['vuln_repos'] }}</td>
-                    <td class="text-center">{{ non_tech_stats[org]['non_vuln_repos'] }}</td>
-                    <td class="text-center">{{ "%.2f"|format(pct) }}%</td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-        <!-- Ranks 11–20 Lowest % -->
-        <div class="col-md-3">
-          <div class="card shadow-sm">
-            <div class="card-header bg-info text-white">
-              Least Vulnerable NON-TECH Companies %
-            </div>
-            <div class="card-body p-0">
-              <table class="table table-sm mb-0">
-                <thead>
-                  <tr>
-                    <th>Company</th>
-                    <th class="text-center">Vuln</th>
-                    <th class="text-center">Safe</th>
-                    <th class="text-center">%</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for org, pct in least_vuln_non_tech_top10.items() %}
-                  <tr>
-                    <td>
-                      {% set avatar = avatar_url_map.get(org) if avatar_url_map is defined else None %}
-                      {% if avatar %}
-                        <img src="{{ avatar }}" alt="{{ global_company[org] }}" class="rounded-circle mr-1" style="width:18px;height:18px;object-fit:cover;vertical-align:middle;">
-                      {% endif %}
-                      <a href="{{ url_for('repos', profile=org) }}">{{ global_company[org] }}</a>
-                    </td>
-                    <td class="text-center">{{ least_non_tech_stats[org]['vuln_repos'] }}</td>
-                    <td class="text-center">{{ least_non_tech_stats[org]['non_vuln_repos'] }}</td>
-                    <td class="text-center">{{ "%.2f"|format(pct) }}%</td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+      <div class="row">
+        {{ vuln_box('Most Vulnerable TECH (%)',       most_vuln_tech_top10,       tech_stats,          global_company, avatar_url_map, 'badge-soft-danger',  'bg-danger') }}
+        {{ vuln_box('Least Vulnerable TECH (%)',       least_vuln_tech_top10,      least_tech_stats,     global_company, avatar_url_map, 'badge-soft-warning', 'bg-warning text-dark') }}
+        {{ vuln_box('Most Vulnerable NON-TECH (%)',    most_vuln_non_tech_top10,   non_tech_stats,      global_company, avatar_url_map, 'badge-soft-info',    'bg-success') }}
+        {{ vuln_box('Least Vulnerable NON-TECH (%)',   least_vuln_non_tech_top10,  least_non_tech_stats, global_company, avatar_url_map, 'badge-soft-primary', 'bg-info') }}
       </div>
     </div>
 
