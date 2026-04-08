@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Raw Data • Repositories Summary</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet">
+  <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator_simple.min.css" rel="stylesheet">
+  <style>
+    body { padding-top: 70px; }
+    .tabulator .tabulator-header .tabulator-col .tabulator-col-title { font-weight: 600; }
+    #top-scroll {
+      overflow-x: auto;
+      overflow-y: hidden;
+      height: 18px;
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: .25rem;
+    }
+    #top-scroll::-webkit-scrollbar { height: 12px; }
+    #top-scroll-inner { height: 1px; }
+  </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <div class="container-fluid">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h2 class="mb-0">Repositories Summary (raw)</h2>
+        <div class="form-inline">
+          <span class="mr-3 text-muted small">Rows: <strong id="row-count">0</strong></span>
+          <input id="search-input" class="form-control form-control-sm mr-2" type="search" placeholder="Search repositories...">
+          <button id="clear-search" class="btn btn-sm btn-outline-secondary">Clear</button>
+        </div>
+      </div>
+
+      <div id="top-scroll" class="mb-1">
+        <div id="top-scroll-inner"></div>
+      </div>
+
+      <script id="repos-data" type="application/json">{{ records|tojson | safe }}</script>
+      <script id="repos-columns" type="application/json">{{ columns|tojson | safe }}</script>
+
+      <div id="repos-table"></div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
+
+    <script>
+      const tableData = JSON.parse(document.getElementById('repos-data').textContent || '[]');
+      const colsArr = JSON.parse(document.getElementById('repos-columns').textContent || '[]');
+
+      document.getElementById('row-count').textContent = Array.isArray(tableData) ? tableData.length : 0;
+
+      // Generate columns similar to profiles summary view
+      const columns = (Array.isArray(colsArr) && colsArr.length ? colsArr : (tableData[0] ? Object.keys(tableData[0]) : [])).map(col => {
+        const base = { title: col, field: col, headerSort: true };
+        if (col === 'repository_url' || col === 'api_url') {
+          return { ...base, formatter: cell => {
+            const val = cell.getValue();
+            if (!val) return '';
+            const text = String(val).replace(/^https?:\/\//, '');
+            return `<a href="${val}" target="_blank" rel="noopener">${text}</a>`;
+          }};
+        }
+        if (col === 'organization') {
+          return { ...base, formatter: cell => {
+            const val = cell.getValue();
+            if (!val) return '';
+            return `<a href="/repos/${val}">${val}</a>`;
+          }};
+        }
+        if (col === 'full_name' || col === 'repository_name' || col === 'repository') {
+          return { ...base, formatter: cell => {
+            const data = cell.getRow().getData();
+            const org = data.organization;
+            const repo = data.repository_name || data.repository || '';
+            const url = data.repository_url || (org && repo ? `https://github.com/${org}/${repo}` : null);
+            if (!url) return cell.getValue() || repo || '';
+            const text = cell.getValue() || repo || url;
+            return `<a href="${url}" target="_blank" rel="noopener">${text}</a>`;
+          }};
+        }
+        return base;
+      });
+
+      const table = new Tabulator('#repos-table', {
+        data: tableData,
+        columns,
+        layout: 'fitData',
+        columnMinWidth: 140,
+        pagination: 'local',
+        paginationSize: 50,
+        paginationSizeSelector: [25, 50, 100, 250, 500, true],
+        paginationButtonCount: 5,
+        height: 'auto',
+        virtualDom: true,
+        columnHeaderVertAlign: 'bottom',
+        placeholder: 'No data available',
+      });
+
+      // Sync top scrollbar with Tabulator holder
+      const holder = table.getElement().querySelector('.tabulator-tableholder');
+      const topScroll = document.getElementById('top-scroll');
+      const topInner = document.getElementById('top-scroll-inner');
+
+      function updateTopScrollWidth(){
+        if (!holder || !topInner) return;
+        const contentWidth = Math.max(holder.scrollWidth, holder.clientWidth + 1);
+        topInner.style.width = contentWidth + 'px';
+        topScroll.scrollLeft = holder.scrollLeft;
+      }
+
+      if (holder && topScroll) {
+        topScroll.addEventListener('scroll', () => { holder.scrollLeft = topScroll.scrollLeft; });
+        holder.addEventListener('scroll', () => { topScroll.scrollLeft = holder.scrollLeft; });
+        table.on('tableBuilt', updateTopScrollWidth);
+        table.on('dataLoaded', updateTopScrollWidth);
+        table.on('renderComplete', updateTopScrollWidth);
+        table.on('columnResized', updateTopScrollWidth);
+        updateTopScrollWidth();
+        window.addEventListener('resize', updateTopScrollWidth);
+      }
+
+      const searchInput = document.getElementById('search-input');
+      const clearBtn = document.getElementById('clear-search');
+
+      function doSearch(){
+        const q = (searchInput.value || '').trim();
+        if (!q) { table.clearFilter(); return; }
+        table.setFilter(rowData => {
+          const str = Object.values(rowData || {}).join(' ').toLowerCase();
+          return str.indexOf(q.toLowerCase()) !== -1;
+        });
+      }
+
+      searchInput.addEventListener('input', doSearch);
+      clearBtn.addEventListener('click', () => { searchInput.value = ''; table.clearFilter(); });
+    </script>
+  </body>
+  </html>

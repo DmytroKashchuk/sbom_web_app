@@ -263,10 +263,28 @@
           </div>
         </div>
       </div>
-      <!-- Spacer / Future Metric -->
-      <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-4 d-none d-xl-block">
-        <div class="stat-card bg-grad-blue p-3 p-md-4" style="opacity:.35; display:flex; align-items:center; justify-content:center;">
-          <small class="text-uppercase text-center" style="letter-spacing:.08em;">Add Metric</small>
+      <!-- Tech Companies -->
+      <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-4">
+        <div class="stat-card bg-grad-blue p-3 p-md-4">
+          <div class="icon-wrap"><i class="fas fa-laptop-code"></i></div>
+          <h6>Tech Companies</h6>
+          <p class="metric mb-1">{{ tech_orgs }}</p>
+          <small class="subline">{{ '%.1f'|format(tech_pct) }}% of orgs</small>
+          <div class="progress">
+            <div class="progress-bar" style="width:{{ tech_pct }}%"></div>
+          </div>
+        </div>
+      </div>
+      <!-- Non-Tech Companies -->
+      <div class="col-xl-2 col-lg-3 col-md-4 col-sm-6 mb-4">
+        <div class="stat-card bg-grad-slate p-3 p-md-4">
+          <div class="icon-wrap"><i class="fas fa-industry"></i></div>
+          <h6>Non-Tech Companies</h6>
+          <p class="metric mb-1">{{ non_tech_orgs }}</p>
+          <small class="subline">{{ '%.1f'|format(non_tech_pct) }}% of orgs</small>
+          <div class="progress">
+            <div class="progress-bar" style="width:{{ non_tech_pct }}%"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -384,32 +402,13 @@
     <div class="card shadow-sm mb-4">
       <div class="card-header bg-light d-flex justify-content-start align-items-center">
         <h2 class="mb-0"><i class="fas fa-chart-line mr-2"></i>|</h2>
-        <!-- Columns dropdown -->
-        <div class="dropdown">
-          <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="columnsDropdown" data-toggle="dropdown">
-            Columns
-          </button>
-          <form class="dropdown-menu p-3" method="get" id="columnsForm">
-            <!-- preserve search/sort in hidden fields -->
-            <input type="hidden" name="search" value="{{ search }}">
-            <input type="hidden" name="sort_by" value="{{ sort_by }}">
-            <input type="hidden" name="order" value="{{ order }}">
-            {% for col in all_columns %}
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" name="columns" value="{{ col }}" id="col-{{ loop.index }}"
-                {% if col in selected_cols %}checked{% endif %}>
-              <label class="form-check-label" for="col-{{ loop.index }}">{{ col }}</label>
-            </div>
-            {% endfor %}
-            <div class="text-right mt-2">
-              <button type="submit" class="btn btn-sm btn-primary">Apply</button>
-            </div>
-          </form>
-        </div>
+        <button class="btn btn-outline-secondary ml-2" type="button" data-toggle="modal" data-target="#columnPickerModal">
+          <i class="fas fa-columns mr-1"></i> Columns
+        </button>
       </div>
       <div class="card-body">
         <!-- Filter form -->
-        <form class="form-inline mb-3" method="get">
+  <form class="form-inline mb-3" id="indexSearchForm">
           <input type="hidden" name="sort_by" value="{{ sort_by }}">
           <input type="hidden" name="order" value="{{ order }}">
           {% for col in selected_cols %}
@@ -418,13 +417,62 @@
           <div class="input-group w-100">
             <input name="search" type="search" class="form-control" placeholder="Search company" value="{{ search }}">
             <div class="input-group-append">
-              <button class="btn btn-primary" type="submit"><i class="fas fa-search"></i> Filter</button>
+              <button class="btn btn-primary" type="button" data-action="search"><i class="fas fa-search"></i> Filter</button>
             </div>
           </div>
         </form>
         <!-- replaced server-rendered table with Tabulator -->
         <div id="index-table"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- Column Picker Modal -->
+  <div class="modal fade" id="columnPickerModal" tabindex="-1" role="dialog" aria-labelledby="columnPickerLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+      <form class="modal-content" method="get" id="columnsForm">
+        <div class="modal-header bg-light">
+          <h5 class="modal-title" id="columnPickerLabel"><i class="fas fa-columns mr-2"></i>Select Columns</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" name="search" value="{{ search }}">
+          <input type="hidden" name="sort_by" value="{{ sort_by }}">
+          <input type="hidden" name="order" value="{{ order }}">
+          <div class="d-flex flex-wrap align-items-center mb-3">
+            <div class="input-group input-group-sm mr-2" style="max-width: 260px;">
+              <div class="input-group-prepend">
+                <span class="input-group-text"><i class="fas fa-search"></i></span>
+              </div>
+              <input type="search" class="form-control" id="columnFilterInput" placeholder="Filter columns">
+            </div>
+            <div class="btn-group btn-group-sm" role="group" aria-label="Column selection actions">
+              <button class="btn btn-outline-secondary" type="button" data-action="select-all">Select all</button>
+              <button class="btn btn-outline-secondary" type="button" data-action="clear-all">Clear all</button>
+              <button class="btn btn-outline-secondary" type="button" data-action="invert">Invert</button>
+            </div>
+          </div>
+          <div class="border rounded p-3" style="max-height: 420px; overflow-y: auto;">
+            <div class="row" id="columnOptions">
+              {% for col in all_columns %}
+              <div class="col-md-6 mb-2 column-option" data-label="{{ col|lower }}">
+                <div class="custom-control custom-checkbox">
+                  <input class="custom-control-input" type="checkbox" name="columns" value="{{ col }}" id="col-{{ loop.index }}"
+                    {% if col in selected_cols %}checked{% endif %}>
+                  <label class="custom-control-label" for="col-{{ loop.index }}">{{ col }}</label>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+        </div>
+      </form>
     </div>
   </div>
   <!-- render barplot -->
@@ -595,6 +643,89 @@
     });
 
     console.log('Tabulator version', Tabulator.version);
+
+    // Column picker modal interactions
+    const columnModal = document.getElementById('columnPickerModal');
+    if(columnModal){
+      const columnForm = document.getElementById('columnsForm');
+      const filterInput = document.getElementById('columnFilterInput');
+      const optionNodes = Array.from(columnModal.querySelectorAll('.column-option'));
+      const checkboxNodes = () => Array.from(columnModal.querySelectorAll('input[type="checkbox"][name="columns"]'));
+
+      function applyColumnFilter(){
+        const searchTerm = (filterInput?.value || '').trim().toLowerCase();
+        optionNodes.forEach(node => {
+          const matches = !searchTerm || node.dataset.label.includes(searchTerm);
+          node.style.display = matches ? '' : 'none';
+        });
+      }
+
+      function setAllColumns(state){
+        checkboxNodes().forEach(cb => { cb.checked = state; });
+      }
+
+      function invertColumns(){
+        checkboxNodes().forEach(cb => { cb.checked = !cb.checked; });
+      }
+
+      columnModal.addEventListener('shown.bs.modal', () => {
+        if(filterInput){
+          filterInput.value = '';
+          applyColumnFilter();
+          filterInput.focus();
+        }
+      });
+
+      if(filterInput){
+        filterInput.addEventListener('input', applyColumnFilter);
+      }
+
+      columnModal.querySelector('[data-action="select-all"]')?.addEventListener('click', () => setAllColumns(true));
+      columnModal.querySelector('[data-action="clear-all"]')?.addEventListener('click', () => setAllColumns(false));
+      columnModal.querySelector('[data-action="invert"]')?.addEventListener('click', invertColumns);
+
+      columnForm?.addEventListener('submit', () => {
+        // allow modal to close naturally after submit (page reload)
+        $('#columnPickerModal').modal('hide');
+      });
+    }
+
+    const searchForm = document.getElementById('indexSearchForm');
+    const searchInput = searchForm ? searchForm.querySelector('input[name="search"]') : null;
+  const searchButton = searchForm ? searchForm.querySelector('button[data-action="search"]') : null;
+
+    function rowMatchesTerm(rowData, lowerTerm){
+      if(!lowerTerm) return true;
+      return Object.values(rowData).some(value => {
+        if(value === null || value === undefined) return false;
+        if(typeof value === 'object') return false;
+        return String(value).toLowerCase().includes(lowerTerm);
+      });
+    }
+
+    function applySearchFilter(){
+      const lowerTerm = (searchInput?.value || '').trim().toLowerCase();
+      table.setFilter(rowData => rowMatchesTerm(rowData, lowerTerm));
+    }
+
+    table.on('tableBuilt', () => {
+      applySearchFilter();
+      if(searchInput){
+        searchInput.addEventListener('input', applySearchFilter);
+        searchInput.addEventListener('keydown', evt => {
+          if(evt.key === 'Enter'){ evt.preventDefault(); }
+        });
+      }
+      if(searchButton){
+        searchButton.addEventListener('click', applySearchFilter);
+      }
+      if(searchForm){
+        searchForm.addEventListener('submit', evt => {
+          evt.preventDefault();
+          applySearchFilter();
+        });
+      }
+    });
   </script>
 
   <!-- Zero Repo Profiles Tabulator Init -->

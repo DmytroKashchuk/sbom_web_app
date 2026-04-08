@@ -3,29 +3,109 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Repositories for Vulnerability {{ vuln_id }}</title>
+  <title>Vulnerability {{ vuln_id }} Impact</title>
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet" />
+  <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator_simple.min.css" rel="stylesheet" />
+  <style>
+    body{padding-top:70px;}
+    .metric-card{border:none;border-radius:.5rem;box-shadow:0 2px 4px rgba(0,0,0,.1);transition:.25s;background:linear-gradient(135deg,#f8f9fa,#eef2f7);}
+    .metric-card:hover{transform:translateY(-3px);box-shadow:0 6px 14px rgba(0,0,0,.15);}
+    .metric-value{font-size:1.4rem;font-weight:700;color:#0056b3;}
+    .metric-label{font-size:.7rem;letter-spacing:.5px;text-transform:uppercase;font-weight:600;color:#6c757d;}
+    .tabulator{font-size:.8rem;}
+    .tabulator .tabulator-col{cursor:pointer;}
+    .badge-pill{font-size:.6rem;padding:.35em .55em;}
+    h1{font-size:1.35rem;font-weight:600;}
+    .page-header{background:linear-gradient(45deg,#007bff,#0056b3);color:#fff;padding:1.2rem 0;margin-bottom:1rem;}
+    .page-header h1{margin:0;font-size:1.4rem;}
+  </style>
 </head>
 <body>
   {% include 'navbar.html' %}
-  <div class="container my-4">
-    <h1>Repositories affected by Vulnerability {{ vuln_id }}</h1>
-    <table class="table table-striped table-hover">
-      <thead>
-        <tr>
-          <th>Organization</th>
-          <th>Repository</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for rec in records %}
-        <tr>
-          <td><a href="{{ url_for('repos', profile=rec['organization']) }}">{{ rec['organization'] }}</a></td>
-          <td>{{ rec['repository'] }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="page-header">
+    <div class="container-fluid">
+      <h1><i class="fas fa-bug mr-2"></i>Vulnerability {{ vuln_id }} Impact</h1>
+    </div>
   </div>
+  <div class="container-fluid mb-4">
+    <div class="row mb-3">
+      <div class="col-6 col-md-3 mb-2">
+        <div class="metric-card p-2 text-center">
+          <div class="metric-label">Total Repositories</div>
+          <div class="metric-value">{{ total_repos }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3 mb-2">
+        <div class="metric-card p-2 text-center">
+          <div class="metric-label">Total Organizations</div>
+          <div class="metric-value">{{ total_orgs }}</div>
+        </div>
+      </div>
+      <div class="col-12 col-md-6 mb-2">
+        <div class="metric-card p-2 h-100 d-flex flex-column">
+          <div class="metric-label mb-1 text-left">Top Organizations (by affected repos)</div>
+          <div class="d-flex flex-wrap" style="gap:.4rem;">
+            {% for o in top_orgs %}
+            <span class="badge badge-pill badge-primary">{{ o.organization }} <span class="badge badge-light ml-1">{{ o.repo_count }}</span></span>
+            {% endfor %}
+            {% if not top_orgs %}<span class="text-muted" style="font-size:.7rem;">No data</span>{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-3">
+      <div class="card-header py-2 bg-primary text-white d-flex align-items-center justify-content-between">
+        <span class="small font-weight-bold"><i class="fas fa-code-branch mr-1"></i>Affected Repositories</span>
+        <div class="d-flex align-items-center">
+          <input id="repo-search" class="form-control form-control-sm" placeholder="Search repo/org..." style="width:200px;">
+          <button id="download-csv" class="btn btn-sm btn-light ml-2"><i class="fas fa-download mr-1"></i>CSV</button>
+        </div>
+      </div>
+      <div class="card-body p-2">
+        <div id="repos-table"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  <script src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/js/all.min.js" defer></script>
+  <script id="records-data" type="application/json">{{ records_json|safe }}</script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const data = JSON.parse(document.getElementById('records-data').textContent);
+      const table = new Tabulator('#repos-table', {
+        data, layout:'fitDataStretch', height:'70vh', rowHeight:28, placeholder:'No repositories',
+        columns:[
+          {title:'#', formatter:'rownum', width:40, headerSort:false},
+          {title:'Organization', field:'organization', headerSort:true},
+          {title:'Repository', field:'repository', headerSort:true, formatter:(cell)=>{
+            const repo = cell.getValue();
+            const org = cell.getRow().getData().organization;
+            return `<a href="${encodeURI(`/libs/${org}/${repo}`)}" style="font-weight:600;">${repo}</a>`;
+          }},
+        ],
+      });
+
+      // Quick search
+      const searchInput = document.getElementById('repo-search');
+      searchInput.addEventListener('input', (e)=>{
+        const term = e.target.value.toLowerCase();
+        if(!term){ table.clearFilter(); return; }
+        table.setFilter((row)=>{
+          const d = row.getData();
+            return (d.organization && d.organization.toLowerCase().includes(term)) ||
+                   (d.repository && d.repository.toLowerCase().includes(term));
+        });
+      });
+
+      // Download CSV
+      document.getElementById('download-csv').addEventListener('click', ()=> table.download('csv', `vuln_${encodeURIComponent('{{ vuln_id }}')}_repos.csv`));
+    });
+  </script>
 </body>
 </html>

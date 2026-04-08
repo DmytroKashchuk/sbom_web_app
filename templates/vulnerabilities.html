@@ -3,60 +3,142 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Vulnerabilities for {{ org }}/{{ repo }}/{{ library }}</title>
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <title>Vulnerabilities - {{ org }}/{{ repo }}/{{ library }}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator_simple.min.css">
+  <style>
+    body { background:#fff; }
+    .metric-card { border:1px solid #e6e9ec; border-radius:.65rem; padding:1rem 1.1rem; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+    .metric-value { font-size:1.25rem; font-weight:600; }
+    .metric-label { font-size:.65rem; text-transform:uppercase; letter-spacing:.08em; color:#6c757d; }
+    .severity-badges .badge{margin:.125rem .3rem .125rem 0; font-size:.6rem; letter-spacing:.5px; font-weight:500;}
+    .badge-sev-Critical{background:#6b1020;}
+    .badge-sev-High{background:#dc3545;}
+    .badge-sev-Medium{background:#fd7e14; color:#212529;}
+    .badge-sev-Low{background:#0dcaf0; color:#212529;}
+    .badge-sev-Info{background:#adb5bd; color:#212529;}
+    #vuln-table { border:1px solid #e6e9ec; border-radius:.65rem; }
+    .tabulator { border:0; }
+    .tabulator .tabulator-header { background:#fafbfc; border-bottom:1px solid #e6e9ec; }
+    .tabulator .tabulator-row { border-bottom:1px solid #f1f3f5; }
+    .tabulator .tabulator-row:hover { background:#f8f9fb; }
+    .controls-bar { background:#fff; border:1px solid #e6e9ec; border-radius:.65rem; padding:.9rem 1rem; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+    .form-control, .form-select { font-size:.85rem; }
+    .export-btns .btn{font-size:.7rem; letter-spacing:.05em; text-transform:uppercase;}
+  </style>
 </head>
-<body>
+<body class="pt-4">
   {% include 'navbar.html' %}
-  <div class="container-fluid my-4">
-    <h1>Vulnerabilities for {{ org }}/{{ repo }}/{{ library }}</h1>
-    <a href="{{ url_for('libs', org=org, repo=repo) }}" class="btn btn-secondary mb-3">Back</a>
-    <div class="table-responsive">
-      <table class="table table-striped table-bordered w-100">
-        <thead class="thead-dark">
-          <tr>
-            {% for col in columns %}
-              {% set is_current = (col==sort_by) %}
-              {% set next_order = 'desc' if is_current and order=='asc' else 'asc' %}
-              <th>
-                <a href="{{ url_for('vuln_summary', org=org, repo=repo, library=library,
-                                     page=1, sort_by=col, order=next_order) }}">
-                  {{ col }}
-                  {% if is_current %}
-                    {% if order=='asc' %}▲{% else %}▼{% endif %}
-                  {% endif %}
-                </a>
-              </th>
-            {% endfor %}
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in records %}
-          <tr>
-            {% for col in columns %}
-              <td>{{ row[col] }}</td>
-            {% endfor %}
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+  <div class="container-fluid mt-4">
+    <div class="d-flex flex-wrap align-items-center mb-3 gap-2">
+      <h2 class="h4 me-3 mb-2 mb-md-0">Vulnerabilities <span class="text-muted">/ {{ org }} / {{ repo }} /</span> <strong>{{ library }}</strong></h2>
+      <a href="{{ url_for('libs', org=org, repo=repo) }}" class="btn btn-outline-secondary btn-sm ms-auto">Back to Libraries</a>
     </div>
-    <nav aria-label="Page navigation">
-      <ul class="pagination">
-        {% if page > 1 %}
-        <li class="page-item">
-          <a class="page-link" href="{{ url_for('vuln_summary',
-            org=org, repo=repo, library=library, page=page-1) }}">Previous</a>
-        </li>
-        {% endif %}
-        {% if page < total_pages %}
-        <li class="page-item">
-          <a class="page-link" href="{{ url_for('vuln_summary',
-            org=org, repo=repo, library=library, page=page+1) }}">Next</a>
-        </li>
-        {% endif %}
-      </ul>
-    </nav>
+
+    <div class="row g-3 mb-3">
+      <div class="col-6 col-sm-3">
+        <div class="metric-card text-center">
+          <div class="metric-value">{{ total_rows }}</div>
+          <div class="metric-label">Rows</div>
+        </div>
+      </div>
+      <div class="col-6 col-sm-3">
+        <div class="metric-card text-center">
+          <div class="metric-value {% if is_vulnerable %}text-danger{% else %}text-success{% endif %}">{{ 'Yes' if is_vulnerable else 'No' }}</div>
+          <div class="metric-label">Any Vuln</div>
+        </div>
+      </div>
+      <div class="col-6 col-sm-3">
+        <div class="metric-card text-center">
+          <div class="metric-value text-danger">{{ vulnerable_rows }}</div>
+          <div class="metric-label">Vuln Rows</div>
+        </div>
+      </div>
+      <div class="col-6 col-sm-3">
+        <div class="metric-card text-center severity-badges">
+          {% if severity_counts %}
+            {% for sev, ct in severity_counts.items() %}
+              <span class="badge badge-sev-{{ sev|capitalize }}">{{ sev|capitalize }} {{ ct }}</span>
+            {% endfor %}
+          {% else %}
+            <div class="metric-value text-muted" style="font-size:.85rem;">No Severities</div>
+          {% endif %}
+          <div class="metric-label mt-1">Severity Dist.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls removed as requested: live search and column selection -->
+
+    <div id="vuln-table" data-records='{{ records_json|safe }}'></div>
   </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
+  <script>
+    (function(){
+      const el = document.getElementById('vuln-table');
+      let data = [];
+      try { data = JSON.parse(el.getAttribute('data-records')); } catch(e){ console.error('Parse error', e); }
+
+      // Expose identifiers safely
+      const ORG = "{{ org }}";
+      const REPO = "{{ repo }}";
+      const LIB = "{{ library }}";
+      const baseName = (ORG + '_' + REPO + '_' + LIB + '_vulns').replace(/[^\w.-]+/g,'_');
+
+      // Column definitions with custom formatters where useful
+      const baseCols = [
+        {title:'Vulnerability ID', field:'vulnerability_id', headerFilter:true, formatter:function(cell){
+            const v = cell.getValue();
+            return v ? `<a href="https://github.com/advisories/${v}" target="_blank" rel="noopener" class="text-decoration-none">${v}</a>` : '';
+        }},
+        {title:'Package', field:'package_name', headerFilter:true},
+        {title:'Installed', field:'installed_version', hozAlign:'center'},
+        {title:'Severity', field:'severity', headerFilter:true, formatter:function(cell){
+            const sev = (cell.getValue()||'').toString().trim();
+            if(!sev) return '';
+            const cls = 'badge-sev-'+sev.charAt(0).toUpperCase()+sev.slice(1).toLowerCase();
+            return `<span class="badge ${cls}">${sev}</span>`;
+        }},
+        {title:'Fixed Version', field:'fixed_version', hozAlign:'center'},
+        {title:'Description', field:'description', width:400, formatter:"textarea"},
+        {title:'Links', field:'links', formatter:function(cell){
+            const link = cell.getValue();
+            if(!link) return '';
+            return `<a href="${link}" target="_blank" rel="noopener" class="small">Advisory</a>`;
+        }},
+        {title:'Organization', field:'Organization', headerFilter:true},
+        {title:'Repository', field:'repository', headerFilter:true},
+      ];
+
+      // Add any extra columns dynamically (avoid duplicates)
+      const seen = new Set(baseCols.map(c=>c.field));
+      const first = data[0] || {};
+      Object.keys(first).forEach(k=>{ if(!seen.has(k)) baseCols.push({title:k.replace(/_/g,' '), field:k}); });
+
+      const table = new Tabulator('#vuln-table', {
+        data:data,
+        columns:baseCols,
+        layout:'fitDataStretch',
+        reactiveData:false,
+        pagination:true,
+        paginationMode:'local',
+        paginationSize:25,
+        paginationSizeSelector:[25,50,100,200,500],
+        placeholder:'No vulnerability data',
+        tooltips:true,
+        height:"75vh",
+        initialSort:[{column:'severity', dir:'desc'}],
+        rowFormatter:function(row){
+          const sev = (row.getCell('severity')?.getValue()||'').toLowerCase();
+          if(['critical'].includes(sev)) row.getElement().style.background='#fff5f5';
+          else if(['high'].includes(sev)) row.getElement().style.background='#fff9f6';
+        }
+      });
+
+      // Controls removed: search, page size selector, exports, and column toggles
+    })();
+  </script>
 </body>
 </html>

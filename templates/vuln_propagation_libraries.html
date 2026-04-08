@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vulnerability Propagation • Libraries</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" integrity="sha512-dYyrwHua+O6pwxKF1u9IiMaivGi99ZTSdKCbFf8gUpbZQ+Q0jrISFRCGDpa2BkLomPvKgJo6aoVuv5Q9MbugXg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator_simple.min.css" rel="stylesheet">
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  <script src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
+  <style>
+    body {
+      background-color: #f8f9fa;
+      padding-top: 70px;
+    }
+
+    .page-header {
+      background: linear-gradient(45deg, #0d6efd, #001f3f);
+      color: #fff;
+      padding: 1.5rem 0;
+      margin-bottom: 1.5rem;
+    }
+
+    .metric-card {
+      border: none;
+      border-radius: 0.75rem;
+      box-shadow: 0 10px 30px rgba(13, 110, 253, 0.18);
+      overflow: hidden;
+      transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+
+    .metric-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 14px 36px rgba(13, 110, 253, 0.25);
+    }
+
+    .metric-card .card-body {
+      padding: 1.25rem;
+    }
+
+    .metric-label {
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .metric-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .tabulator .tabulator-col {
+      cursor: pointer;
+    }
+
+    .tabulator .tabulator-header .tabulator-col .tabulator-col-title {
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .tabulator .tabulator-cell {
+      font-size: 0.9rem;
+    }
+
+    .search-input {
+      border-radius: 999px;
+      padding-left: 2.5rem;
+    }
+
+    .search-wrapper {
+      position: relative;
+    }
+
+    .search-wrapper .search-icon {
+      position: absolute;
+      top: 50%;
+      left: 1rem;
+      transform: translateY(-50%);
+      color: #6c757d;
+    }
+
+    .section-title {
+      font-size: 1.05rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #6c757d;
+      margin-bottom: 0.75rem;
+    }
+
+    .helper-text {
+      font-size: 0.85rem;
+      color: #6c757d;
+    }
+  </style>
+</head>
+
+<body>
+  {% include 'navbar.html' %}
+
+  <header class="page-header">
+    <div class="container-fluid">
+      <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between">
+        <div>
+          <h1 class="h3 mb-1">Library Blast Radius</h1>
+          <p class="mb-0">Identify which libraries spread across the largest number of organizations and repositories.</p>
+        </div>
+        {% if display_count == total_rows %}
+        <span class="badge badge-pill badge-light mt-3 mt-md-0">Displaying all {{ '{:,}'.format(total_rows | default(0)) }} rows</span>
+        {% else %}
+        <span class="badge badge-pill badge-light mt-3 mt-md-0">Showing {{ '{:,}'.format(display_count | default(0)) }} of {{ '{:,}'.format(total_rows | default(0)) }} rows</span>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <main class="container-fluid">
+    <section class="mb-4">
+      <div class="row">
+        <div class="col-sm-6 col-lg-3 mb-3">
+          <div class="metric-card bg-primary text-white">
+            <div class="card-body">
+              <span class="metric-label">Rows analysed</span>
+              <div class="metric-value">{{ '{:,}'.format(summary_metrics.total_rows | default(0)) }}</div>
+              <small class="text-white-50">Total library entries</small>
+            </div>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3 mb-3">
+          <div class="metric-card bg-success text-white">
+            <div class="card-body">
+              <span class="metric-label">Unique libraries</span>
+              <div class="metric-value">{{ '{:,}'.format(summary_metrics.unique_libraries | default(0)) }}</div>
+              <small class="text-white-50">Distinct packages in scope</small>
+            </div>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3 mb-3">
+          <div class="metric-card bg-warning text-dark">
+            <div class="card-body">
+              <span class="metric-label text-dark">Peak org impact</span>
+              <div class="metric-value text-dark">{{ '{:,}'.format(summary_metrics.max_affected_orgs | default(0)) }}</div>
+              <small class="text-muted">Max organizations hit by one library</small>
+            </div>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3 mb-3">
+          <div class="metric-card bg-dark text-white">
+            <div class="card-body">
+              <span class="metric-label">Peak repo impact</span>
+              <div class="metric-value">{{ '{:,}'.format(summary_metrics.max_affected_repos | default(0)) }}</div>
+              <small class="text-white-50">Highest repository count for a library</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-5">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between mb-3">
+            <div>
+              <h2 class="h5 mb-1">Library impact inventory</h2>
+              <p class="text-muted mb-0">Interactive table (default limit: {{ limit }})</p>
+            </div>
+            <div class="search-wrapper mt-3 mt-lg-0">
+              <span class="search-icon"><i class="fas fa-search"></i></span>
+              <input id="tableSearch" type="search" class="form-control search-input" placeholder="Search library, versions, or counts...">
+            </div>
+          </div>
+          <div id="libTable"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script id="table-data" type="application/json">{{ records_json | safe }}</script>
+  <script id="columns-data" type="application/json">{{ columns | tojson | safe }}</script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const tableData = JSON.parse(document.getElementById('table-data').textContent || '[]');
+      const columnNames = JSON.parse(document.getElementById('columns-data').textContent || '[]');
+
+      const numericColumns = new Set([
+        'affected_organizations',
+        'affected_repositories',
+        'different_versions',
+        'different_paths',
+        'different_types',
+        'total_vulnerabilities'
+      ]);
+
+      const columns = columnNames.map(name => {
+        const title = name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        const columnConfig = {
+          title,
+          field: name,
+          headerSort: true,
+          headerFilter: 'input',
+          headerFilterPlaceholder: 'Filter…',
+          headerFilterLiveFilter: true
+        };
+        if (numericColumns.has(name)) {
+          columnConfig.hozAlign = 'right';
+          columnConfig.formatter = function (cell) {
+            const value = cell.getValue();
+            if (value === null || value === undefined || value === '') {
+              return '';
+            }
+            return Number(value).toLocaleString();
+          };
+        } else {
+          columnConfig.formatter = function (cell) {
+            const value = cell.getValue();
+            if (!value) return '';
+            return `<span class="font-weight-bold">${value}</span>`;
+          };
+        }
+        return columnConfig;
+      });
+
+      const table = new Tabulator('#libTable', {
+        data: tableData,
+        layout: 'fitColumns',
+        responsiveLayout: 'collapse',
+        pagination: 'local',
+        paginationSize: 50,
+        paginationSizeSelector: [25, 50, 100, 250, 500],
+        columns: columns,
+        height: '600px',
+        placeholder: 'No data available for the current selection.'
+      });
+
+      const searchInput = document.getElementById('tableSearch');
+      if (searchInput) {
+        searchInput.addEventListener('keyup', function () {
+          const query = this.value.trim().toLowerCase();
+          if (!query) {
+            table.clearFilter(true);
+            return;
+          }
+          table.setFilter(function (data) {
+            return Object.values(data).some(value =>
+              value !== null && value !== undefined && String(value).toLowerCase().includes(query)
+            );
+          });
+        });
+      }
+
+    });
+  </script>
+</body>
+
+</html>

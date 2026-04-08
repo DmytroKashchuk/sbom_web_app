@@ -450,34 +450,50 @@
         table.download('csv','main_selected_columns.csv',{columnHeaders:true,bom:true,rowRange:'all'});
       });
 
-      // Profile filter radios AFTER table is built
+      // Profile + search filters (case-insensitive live search)
       const possibleProfileFields = ['github_profile_name','github_profile','profile_name'];
       const dataKeys = Object.keys(tableData[0]||{});
       const profileField = possibleProfileFields.find(f=>dataKeys.includes(f));
-      console.log('Detected profileField:', profileField);
+      const profileRadios = document.querySelectorAll('input[name="profileFilter"]');
+      const searchInput = document.querySelector('#controlsForm input[name="search"]');
+      const controlsForm = document.getElementById('controlsForm');
+
+      function hasProfileValue(rowData){
+        if(!profileField) return true;
+        const value = rowData[profileField];
+        return value !== null && value !== undefined && String(value).trim() !== '';
+      }
+
+      function rowMatchesTerm(rowData, lowerTerm){
+        if(!lowerTerm) return true;
+        return Object.values(rowData).some(value => {
+          if(value === null || value === undefined) return false;
+          if(typeof value === 'object') return false;
+          return String(value).toLowerCase().includes(lowerTerm);
+        });
+      }
+
+      function applyCombinedFilters(){
+        const mode = document.querySelector('input[name="profileFilter"]:checked')?.value || 'all';
+        const lowerTerm = (searchInput?.value || '').trim().toLowerCase();
+        table.setFilter(rowData => {
+          const profileOk = mode !== 'only' || hasProfileValue(rowData);
+          return profileOk && rowMatchesTerm(rowData, lowerTerm);
+        });
+      }
 
       table.on('tableBuilt', () => {
-        console.log('Table built, enabling profile filters');
-        if(!profileField) return;
-        const radios = document.querySelectorAll('input[name="profileFilter"]');
-        function applyProfile(){
-          const mode = document.querySelector('input[name="profileFilter"]:checked')?.value || 'all';
-          // clear only our previous function filter(s)
-          table.clearFilter(); // no other client filters currently
-          if(mode==='only'){
-            const fn = function(data){
-              const v = data[profileField];
-              return v !== null && v !== undefined && String(v).trim() !== '';
-            };
-            table.addFilter(fn);
-            console.log('Applied profile filter: only');
-          } else {
-            console.log('Applied profile filter: all');
-          }
+        applyCombinedFilters();
+        profileRadios.forEach(radio => radio.addEventListener('change', applyCombinedFilters));
+        if(searchInput){
+          searchInput.addEventListener('input', applyCombinedFilters);
         }
-        radios.forEach(r=> r.addEventListener('change', applyProfile));
-        // initial apply based on current selection
-        applyProfile();
+        if(controlsForm){
+          controlsForm.addEventListener('submit', evt => {
+            evt.preventDefault();
+            applyCombinedFilters();
+          });
+        }
       });
 
       // Scatter Charts use same tableData (no redeclare)

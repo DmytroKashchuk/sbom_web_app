@@ -48,3 +48,5 @@ Thumbs.db
 
 # Node (if any frontend assets later)
 node_modules/
+
+copilot.instructions.md

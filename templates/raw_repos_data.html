@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Raw Repository Explorer</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" integrity="sha512-1ycn6IcaQQ40/MKBW2W4Rhis/DbILU74C1vSrLJxCq57o941Ym01SwNsOMqvEBFlcgUa6xLiPY/NS5R+E6ztJQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator_simple.min.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #f8fafc;
+      padding-top: 72px;
+    }
+
+    .page-hero {
+      background: linear-gradient(135deg, rgba(76, 110, 245, 0.12), rgba(18, 184, 134, 0.12));
+      border-radius: 24px;
+      padding: 32px;
+      margin-bottom: 32px;
+      box-shadow: 0 18px 30px -24px rgba(15, 23, 42, 0.65);
+    }
+
+    .page-hero h1 {
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+
+    .page-hero p {
+      font-size: 1.05rem;
+      color: #475569;
+      max-width: 720px;
+    }
+
+    .badge-pill {
+      padding: .45rem .85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .table-toolbar .form-control,
+    .table-toolbar .btn {
+      border-radius: 999px;
+    }
+
+    #top-scroll {
+      overflow-x: auto;
+      overflow-y: hidden;
+      height: 18px;
+      background: #edf2ff;
+      border: 1px solid #d0d7ff;
+      border-radius: .45rem;
+    }
+
+    #top-scroll::-webkit-scrollbar {
+      height: 12px;
+    }
+
+    #top-scroll-inner {
+      height: 1px;
+    }
+
+    #raw-repos-table {
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="navbar navbar-expand-lg navbar-light bg-white fixed-top shadow-sm py-3">
+    <div class="container-fluid px-lg-5">
+      <a class="navbar-brand font-weight-bold text-primary" href="/">SBOM Insights</a>
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ml-auto">
+          <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
+          <li class="nav-item active"><a class="nav-link" href="/raw/raw_repos">Raw Repositories</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container-fluid px-lg-5 pb-5">
+    <section class="page-hero">
+      <div class="d-flex align-items-center mb-3 text-primary">
+        <span class="badge badge-primary badge-pill mr-2"><i class="fas fa-database mr-1"></i>Raw feed</span>
+        <span class="badge badge-info badge-pill"><i class="fas fa-search mr-1"></i>Interactive</span>
+      </div>
+      <h1 class="display-5 mb-3">Repository catalogue explorer</h1>
+      <p class="mb-0">Every repository harvested from the Fortune &amp; Global 2000 ecosystems, ready to filter, search, and export.
+        Use the global search to locate companies, repositories, languages, or risk posture insights in a single view.</p>
+    </section>
+
+    <div class="card shadow-sm">
+      <div class="card-header bg-white d-flex flex-wrap align-items-center justify-content-between table-toolbar">
+        <div class="mb-2 mb-md-0 font-weight-bold text-uppercase text-secondary"><i class="fas fa-table mr-2 text-primary"></i>Repository catalogue</div>
+        <div class="d-flex align-items-center">
+          <input id="search-input" class="form-control form-control-sm mr-2" type="search" placeholder="Search anything…" aria-label="Search repositories">
+          <button id="clear-search" class="btn btn-outline-secondary btn-sm mr-2" type="button">Clear</button>
+          <button id="download-csv" class="btn btn-primary btn-sm" type="button"><i class="fas fa-download mr-1"></i>CSV</button>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <div id="top-scroll" class="mb-1">
+          <div id="top-scroll-inner"></div>
+        </div>
+        <script id="table-data" type="application/json">{{ records|tojson | safe }}</script>
+        <script id="table-columns" type="application/json">{{ columns|tojson | safe }}</script>
+        <div id="raw-repos-table"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  <script src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
+
+  <script>
+    const tableData = JSON.parse(document.getElementById('table-data').textContent || '[]');
+    const tableColumns = JSON.parse(document.getElementById('table-columns').textContent || '[]');
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const badgeFormatter = (value, paletteClass, fallback = 'Unknown') => {
+        if (value === null || value === undefined || value === '') return `<span class="badge badge-light">${fallback}</span>`;
+        const normalized = String(value).trim().toLowerCase();
+        const isPositive = ['yes', 'true', '1'].includes(normalized);
+        const isNegative = ['no', 'false', '0'].includes(normalized);
+        let cls = 'secondary';
+        if (isPositive) cls = paletteClass[0];
+        else if (isNegative) cls = paletteClass[1];
+        return `<span class="badge badge-${cls} badge-pill text-uppercase">${normalized || fallback}</span>`;
+      };
+
+      const numericFields = new Set(['stars', 'forks', 'watchers', 'open_issues', 'vulnerable_libraries_count', 'total_libraries', 'total_unique_libraries', 'total_unique_versions']);
+      const percentageFields = new Set(['percentage_vulnerable_libraries', 'percentage_vulnerable_libraries_per_repo', 'percentage_unique_versions']);
+
+      const columns = (Array.isArray(tableColumns) && tableColumns.length ? tableColumns : (tableData[0] ? Object.keys(tableData[0]) : [])).map(col => {
+        const base = { title: col.replace(/_/g, ' ').toUpperCase(), field: col, headerSort: true, minWidth: 140 };
+        if (col === 'repository_url') {
+          return { ...base, formatter: cell => {
+            const val = cell.getValue();
+            if (!val) return '';
+            const text = String(val).replace(/^https?:\/\//, '');
+            return `<a href="${val}" target="_blank" rel="noopener">${text}</a>`;
+          } };
+        }
+        if (col === 'organization') {
+          return { ...base, formatter: cell => {
+            const val = cell.getValue();
+            if (!val) return '';
+            return `<a href="${window.location.origin}/repos/${val}">${val}</a>`;
+          } };
+        }
+        if (['repository_name', 'repository', 'full_name'].includes(col)) {
+          return { ...base, formatter: cell => {
+            const data = cell.getRow().getData();
+            const org = data.organization;
+            const repo = data.repository_name || data.repository || '';
+            const link = data.repository_url || (org && repo ? `https://github.com/${org}/${repo}` : null);
+            const label = cell.getValue() || repo;
+            if (!link) return label || '';
+            return `<a href="${link}" target="_blank" rel="noopener">${label || link}</a>`;
+          } };
+        }
+        if (col === 'vulnerable_repo') {
+          return { ...base, hozAlign: 'center', formatter: cell => badgeFormatter(cell.getValue(), ['danger', 'success'], 'Unknown') };
+        }
+        if (col === 'zero_libraries') {
+          return { ...base, hozAlign: 'center', formatter: cell => badgeFormatter(cell.getValue(), ['info', 'secondary'], 'Unknown') };
+        }
+        if (col === 'is_active') {
+          return { ...base, hozAlign: 'center', formatter: cell => badgeFormatter(cell.getValue(), ['success', 'secondary'], 'Unknown') };
+        }
+        if (numericFields.has(col)) {
+          return { ...base, hozAlign: 'right', formatter: cell => {
+            const val = Number(cell.getValue());
+            return Number.isFinite(val) ? val.toLocaleString() : '';
+          } };
+        }
+        if (percentageFields.has(col)) {
+          return { ...base, hozAlign: 'right', formatter: cell => {
+            const val = Number(cell.getValue());
+            return Number.isFinite(val) ? `${val.toFixed(2)}%` : '';
+          } };
+        }
+        return base;
+      });
+
+      const table = new Tabulator('#raw-repos-table', {
+        data: tableData,
+        columns,
+        layout: 'fitDataStretch',
+        columnMinWidth: 120,
+        pagination: 'local',
+        paginationSize: 25,
+        paginationSizeSelector: [25, 50, 100, 250, true],
+        height: '600px',
+        movableColumns: true,
+        resizableRows: false,
+        tooltips: true,
+        placeholder: 'No data available',
+        virtualDom: true,
+      });
+
+      const searchInput = document.getElementById('search-input');
+      const clearBtn = document.getElementById('clear-search');
+      searchInput.addEventListener('input', () => {
+        const query = (searchInput.value || '').toLowerCase();
+        if (!query) return table.clearFilter();
+        table.setFilter(row => {
+          const values = Object.values(row.getData() || {}).map(v => (v === null || v === undefined) ? '' : String(v).toLowerCase());
+          return values.some(v => v.includes(query));
+        });
+      });
+      clearBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        table.clearFilter();
+      });
+
+      document.getElementById('download-csv').addEventListener('click', () => {
+        table.download('csv', 'raw_repositories.csv');
+      });
+
+      const holder = table.element.querySelector('.tabulator-tableholder');
+      const topScroll = document.getElementById('top-scroll');
+      const topInner = document.getElementById('top-scroll-inner');
+
+      function updateTopScrollWidth() {
+        if (!holder || !topInner) return;
+        const width = Math.max(holder.scrollWidth, holder.clientWidth + 1);
+        topInner.style.width = `${width}px`;
+        topScroll.scrollLeft = holder.scrollLeft;
+      }
+
+      if (holder && topScroll) {
+        topScroll.addEventListener('scroll', () => { holder.scrollLeft = topScroll.scrollLeft; });
+        holder.addEventListener('scroll', () => { topScroll.scrollLeft = holder.scrollLeft; });
+        table.on('tableBuilt', updateTopScrollWidth);
+        table.on('renderComplete', updateTopScrollWidth);
+        table.on('columnResized', updateTopScrollWidth);
+        window.addEventListener('resize', updateTopScrollWidth);
+        updateTopScrollWidth();
+      }
+    });
+  </script>
+</body>
+
+</html>

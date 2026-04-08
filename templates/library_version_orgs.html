@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Affected Organizations • {{ library }}{% if version %} • {{ version }}{% endif %}</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator_simple.min.css" rel="stylesheet" />
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  <script src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
+  <style>
+    body { background-color:#f8f9fa; padding-top:70px; }
+    .page-header { background:linear-gradient(45deg,#343a40,#007bff); color:#fff; padding:1.25rem 0; margin-bottom:1rem; }
+    .search-input { border-radius:999px; padding-left:2.25rem; }
+    .search-wrapper { position:relative; }
+    .search-wrapper .search-icon { position:absolute; left:0.85rem; top:50%; transform:translateY(-50%); color:#6c757d; }
+    .tabulator .tabulator-col{cursor:pointer;}
+    .badge-soft { background: rgba(255,255,255,.2); color:#fff; }
+  </style>
+</head>
+
+<body>
+  {% include 'navbar.html' %}
+
+  <header class="page-header">
+    <div class="container-fluid d-flex flex-wrap align-items-center justify-content-between">
+      <div>
+        <h1 class="h4 mb-1">Affected Organizations</h1>
+        <p class="mb-0">Showing companies using <strong>{{ library }}</strong>{% if version %} at version <strong>{{ version }}</strong>{% endif %}.</p>
+      </div>
+      <span class="badge badge-pill badge-light">{{ total_orgs }} companies</span>
+    </div>
+  </header>
+
+  <main class="container-fluid">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between mb-3">
+          <div>
+            <h2 class="h5 mb-1">Companies</h2>
+            <p class="text-muted mb-0">Interactive table with search, sort, and pagination.</p>
+          </div>
+          <div class="search-wrapper mt-3 mt-lg-0">
+            <span class="search-icon"><i class="fas fa-search"></i></span>
+            <input id="tableSearch" type="search" class="form-control search-input" placeholder="Search company or metric...">
+          </div>
+        </div>
+        <div id="companyTable"></div>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/js/all.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script id="records-json" type="application/json">{{ records_json | safe }}</script>
+  <script id="columns-json" type="application/json">{{ columns | tojson | safe }}</script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function(){
+      const data = JSON.parse(document.getElementById('records-json').textContent || '[]');
+      const cols = JSON.parse(document.getElementById('columns-json').textContent || '[]');
+
+  // Build Tabulator columns, making global_company clickable to repos page, and github_profile external
+      const repoUrlPrefix = "{{ url_for('repos', profile='') }}"; // /repos/
+
+      function smartNumParse(val){ if(val==null||val==='') return 0; if(typeof val==='number') return val; let s=String(val).trim(); let pct=false; if(s.endsWith('%')){pct=true; s=s.slice(0,-1).trim();} s=s.replace(/[$€£¥]/g,'').replace(/,/g,'').replace(/\s+/g,''); let neg=false; if(s.startsWith('(')&&s.endsWith(')')){neg=true; s=s.slice(1,-1);} let mult=1; const m=s.match(/([0-9.+-]+)([KMBT])$/i); if(m){s=m[1]; const suf=m[2].toUpperCase(); if(suf==='K') mult=1e3; else if(suf==='M') mult=1e6; else if(suf==='B') mult=1e9; else if(suf==='T') mult=1e12;} let n=parseFloat(s); if(isNaN(n)) return 0; n*=mult; if(neg) n=-n; if(pct) n/=100; return n; }
+      Tabulator.extendModule('sort','sorters',{smartnum:(a,b)=>smartNumParse(a)-smartNumParse(b)});
+
+      const sample = data.slice(0,50);
+      let columns = cols.map(field => {
+        const col = { title: field.replace(/_/g,' '), field, headerSort:true };
+        if(field==='global_company'){
+          col.formatter = function(cell){
+            const d = cell.getData();
+            const val = cell.getValue() || '';
+            const prof= d.github_profile_name || '';
+            const ava = d.avatar_url || '';
+            const img = ava ? `<img src="${ava}" class="rounded-circle mr-2" style="width:20px;height:20px;object-fit:cover;">` : '';
+            if(!prof) return img + val;
+            const lib = encodeURIComponent("{{ library }}");
+            const ver = encodeURIComponent("{{ version or '' }}");
+            const q = ver ? `?library=${lib}&version=${ver}` : `?library=${lib}`;
+            return `${img}<a href="${repoUrlPrefix}${prof}${q}">${val}</a>`;
+          }
+        } else if(field==='github_profile') {
+          col.formatter = function(cell){
+            const url = cell.getValue();
+            if(!url) return '';
+            const display = url.replace(/^https?:\/\//,'');
+            return `<a href="${url}" target="_blank" rel="noopener noreferrer">${display}</a>`;
+          }
+        } else {
+          // infer numeric for sorting and right align
+          const numeric = sample.every(r=>{const v=r[field]; return v==null||v===''||!isNaN(smartNumParse(v));});
+          if(numeric){ col.sorter='smartnum'; col.hozAlign='right'; }
+        }
+        return col;
+      });
+
+      // Deduplicate columns just in case
+      columns = columns.filter((c,i,a)=>a.findIndex(x=>x.field===c.field)===i);
+
+      const table = new Tabulator('#companyTable',{
+        data: data,
+        columns: columns,
+        layout: 'fitDataStretch',
+        pagination: 'local',
+        paginationSize: 50,
+        paginationSizeSelector: [50,100,250,500,true],
+        paginationButtonCount: 5,
+        height: 'auto',
+        virtualDom: true
+      });
+
+      const searchInput = document.getElementById('tableSearch');
+      searchInput.addEventListener('input', ()=>{
+        const q = (searchInput.value||'').trim().toLowerCase();
+        if(!q){ table.clearFilter(true); return; }
+        table.setFilter(row => Object.values(row).some(v => v!=null && v!=undefined && String(v).toLowerCase().includes(q)));
+      });
+    });
+  </script>
+</body>
+</html>

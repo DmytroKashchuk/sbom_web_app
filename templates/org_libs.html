@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ company_name or org }} · Libraries Portfolio</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator_simple.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  <style>
+    body { background-color: #f6f7fb; padding-top: 72px; }
+    .org-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem; }
+    .org-avatar { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.1); background: #fff; }
+    .org-avatar.placeholder { display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.2rem; color: #495057; background: linear-gradient(135deg,#dee2e6,#f8f9fa); }
+    .org-titles h1 { font-size: 1.75rem; margin-bottom: .2rem; }
+    .org-titles .subtitle { text-transform: uppercase; font-size: .7rem; letter-spacing: .12em; color: #868e96; margin: 0; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card { background: #fff; border-radius: 1rem; padding: 1rem 1.15rem; position: relative; overflow: hidden; box-shadow: 0 12px 24px -18px rgba(21, 45, 89, .45); border-left: 5px solid transparent; }
+    .stat-card .metric-label { text-transform: uppercase; font-size: .68rem; letter-spacing: .08em; color: #6c757d; margin-bottom: .2rem; }
+    .stat-card .metric-value { font-size: 1.65rem; font-weight: 700; color: #212529; }
+    .stat-card .metric-sub { font-size: .7rem; color: #868e96; }
+    .stat-card .icon-wrap { position: absolute; top: -18px; right: -12px; width: 96px; height: 96px; opacity: .08; display:flex; align-items:center; justify-content:center; }
+    .stat-card.variant-primary { border-left-color: #5b6cf9; }
+    .stat-card.variant-success { border-left-color: #2bb673; }
+    .stat-card.variant-danger { border-left-color: #f2545b; }
+    .stat-card.variant-warning { border-left-color: #f2a541; }
+    .stat-card.variant-info { border-left-color: #38bdf8; }
+    .stat-card.variant-secondary { border-left-color: #adb5bd; }
+  .card { border: none; border-radius: 1rem; box-shadow: 0 18px 30px -23px rgba(20,27,196,0.45); }
+    .tabulator { border: none; box-shadow: 0 18px 30px -23px rgba(20,27,196,0.35); border-radius: 1rem; }
+    .data-actions .btn { border-radius: 999px; }
+    .top-scrollbar { display:none; overflow-x: auto; overflow-y:hidden; margin-bottom: 6px; border-radius: 1rem; background: #fff; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05); }
+    .top-scrollbar::-webkit-scrollbar { height: 10px; }
+    .top-scrollbar::-webkit-scrollbar-thumb { background: #5b6cf9; border-radius: 999px; }
+    #org-libs-table { border-radius: 1rem; }
+  </style>
+</head>
+<body>
+  {% include 'navbar.html' %}
+  <div class="container-fluid px-4 px-xl-5 my-4">
+    <div class="org-header">
+      {% if company_avatar %}
+        <img src="{{ company_avatar }}" alt="{{ company_name or org }} avatar" class="org-avatar">
+      {% else %}
+        <div class="org-avatar placeholder">{{ (company_name or org)[:2]|upper }}</div>
+      {% endif %}
+      <div class="org-titles">
+        <h1 class="mb-1">{{ company_name or org }}</h1>
+        <p class="subtitle mb-0"><i class="fab fa-github mr-1"></i>{{ org }}</p>
+      </div>
+  <div class="ml-auto data-actions d-flex flex-wrap">
+        <a class="btn btn-outline-secondary mr-2 mb-2" href="{{ url_for('repos', profile=org) }}">
+          <i class="fas fa-arrow-left mr-1"></i>Back to repos
+        </a>
+      </div>
+    </div>
+
+    <section class="stats-grid">
+      <div class="stat-card variant-primary">
+        <div class="icon-wrap"><i class="fas fa-layer-group fa-3x"></i></div>
+        <div class="metric-label">Library Records</div>
+        <div class="metric-value">{{ total_records }}</div>
+        <div class="metric-sub">All dependency entries captured across repos</div>
+      </div>
+      <div class="stat-card variant-success">
+        <div class="icon-wrap"><i class="fas fa-box-open fa-3x"></i></div>
+        <div class="metric-label">Unique Libraries</div>
+        <div class="metric-value">{{ unique_libraries }}</div>
+        <div class="metric-sub">Distinct package names used by the org</div>
+      </div>
+      <div class="stat-card variant-warning">
+        <div class="icon-wrap"><i class="fas fa-code-branch fa-3x"></i></div>
+        <div class="metric-label">Unique Versions</div>
+        <div class="metric-value">{{ unique_versions }}</div>
+        <div class="metric-sub">Library-version combinations in use</div>
+      </div>
+      <div class="stat-card variant-info">
+        <div class="icon-wrap"><i class="fas fa-warehouse fa-3x"></i></div>
+        <div class="metric-label">Repositories</div>
+        <div class="metric-value">{{ total_repositories }}</div>
+        <div class="metric-sub">Active repositories with libraries detected</div>
+      </div>
+      <div class="stat-card variant-danger">
+        <div class="icon-wrap"><i class="fas fa-exclamation-triangle fa-3x"></i></div>
+        <div class="metric-label">Vulnerable Entries</div>
+        <div class="metric-value">{{ vulnerable_records }}</div>
+        <div class="metric-sub">{{ vuln_percentage }}% of all tracked libraries</div>
+      </div>
+      <div class="stat-card variant-secondary">
+        <div class="icon-wrap"><i class="fas fa-shield-alt fa-3x"></i></div>
+        <div class="metric-label">Vulnerable Libraries</div>
+        <div class="metric-value">{{ vulnerable_libraries }}</div>
+        <div class="metric-sub">Across {{ vulnerable_repositories }} repositories</div>
+      </div>
+    </section>
+
+    <div class="card border-0">
+      <div class="card-body">
+        <div class="d-flex flex-column flex-lg-row align-items-lg-center mb-3">
+          <div class="mb-3 mb-lg-0 mr-lg-3">
+            <div class="input-group">
+              <div class="input-group-prepend">
+                <span class="input-group-text"><i class="fas fa-search"></i></span>
+              </div>
+              <input type="search" class="form-control" id="tableSearch" placeholder="Search library, version, repo..." value="{{ search }}">
+            </div>
+          </div>
+          <div class="ml-lg-auto">
+            <small class="text-muted">Interactive table: sort, filter and export data instantly.</small>
+          </div>
+        </div>
+        <div id="top-scrollbar" class="top-scrollbar"><div id="top-scrollbar-content" class="w-100"></div></div>
+        <div id="org-libs-table" aria-label="Libraries table"></div>
+      </div>
+    </div>
+  </div>
+
+  <script id="org-libs-records" type="application/json">{{ records|tojson|safe }}</script>
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
+  <script>
+    (function(){
+      function parseJSON(id, fallback){
+        try {
+          const el = document.getElementById(id);
+          if(!el) return fallback;
+          const text = el.textContent.trim();
+          return text ? JSON.parse(text) : fallback;
+        } catch(err){
+          console.error('Failed parsing JSON payload', id, err);
+          return fallback;
+        }
+      }
+
+      const records = parseJSON('org-libs-records', []);
+      // Build Tabulator columns automatically from payload keys, excluding vulnerability_count
+      const columns = records.length ? Object.keys(records[0])
+        .filter(function(key){ return key !== 'vulnerability_count'; })
+        .map(function(key){
+          const col = { title: key.replace(/_/g, ' ').replace(/\b\w/g, function(l){ return l.toUpperCase(); }), field: key, headerSort: true };
+          if(key === 'is_vulnerable'){
+            col.formatter = function(cell){
+              const isVuln = String(cell.getValue()).toLowerCase() === 'true';
+              if(!isVuln) return '<span class="badge badge-light text-muted">No</span>';
+              const row = cell.getRow().getData();
+              const url = `/vulns/${encodeURIComponent(row.organization)}/${encodeURIComponent(row.repository)}/${encodeURIComponent(row.library)}`;
+              return `<a class="badge badge-danger" href="${url}">Yes</a>`;
+            };
+          }
+          if(key === 'repository'){
+            col.formatter = function(cell){
+              const repo = cell.getValue();
+              return repo ? `<a href="/libs/${encodeURIComponent(cell.getData().organization)}/${encodeURIComponent(repo)}" class="text-decoration-none">${repo}</a>` : '';
+            };
+          }
+          return col;
+        }) : [];
+
+      const table = new Tabulator('#org-libs-table', {
+        data: records,
+        columns: columns,
+        layout: 'fitDataStretch',
+        pagination: true,
+        paginationSize: 100,
+        paginationSizeSelector: [25,50,100,250,500],
+        movableColumns: true,
+        resizableColumns: true,
+        height: '65vh',
+        tooltips: true,
+        placeholder: 'No libraries recorded for this organization yet.'
+      });
+
+      const searchInput = document.getElementById('tableSearch');
+      if(searchInput){
+        searchInput.addEventListener('input', function(){
+          const term = (this.value || '').toLowerCase();
+          if(!term){
+            table.clearFilter();
+            return;
+          }
+          table.setFilter(function(data){
+            return Object.keys(data).some(function(key){
+              const value = data[key];
+              return value !== null && String(value).toLowerCase().includes(term);
+            });
+          });
+        });
+      }
+
+      function setupTopScrollbar(){
+        const holder = document.querySelector('.tabulator-tableholder');
+        const topSb = document.getElementById('top-scrollbar');
+        const topContent = document.getElementById('top-scrollbar-content');
+        if(holder && topSb && topContent){
+          topContent.style.width = holder.scrollWidth + 'px';
+          topSb.style.display = holder.scrollWidth > holder.clientWidth ? 'block' : 'none';
+          topSb.onscroll = function(){ holder.scrollLeft = topSb.scrollLeft; };
+          holder.onscroll = function(){ topSb.scrollLeft = holder.scrollLeft; };
+        }
+      }
+      table.on('tableBuilt', function(){ setTimeout(setupTopScrollbar, 50); });
+      table.on('dataChanged', function(){ setTimeout(setupTopScrollbar, 50); });
+
+    })();
+  </script>
+</body>
+</html>

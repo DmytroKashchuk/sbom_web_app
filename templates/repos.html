@@ -14,6 +14,26 @@
   <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
   <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
   <style>
+  body { padding-top: 72px; background-color: #f8f9fa; }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: .75rem; margin-bottom: 1.5rem; }
+  .stats-grid .stat-card { background: #fff; border-radius: 0.75rem; box-shadow: 0 0.25rem 0.65rem rgba(0,0,0,0.07); padding: .8rem .9rem; position: relative; overflow: hidden; }
+  .stat-card .metric-label { font-size: .7rem; letter-spacing: .07em; text-transform: uppercase; font-weight: 600; color: #6c757d; margin-bottom: .25rem; }
+  .stat-card .metric-value { font-size: 1.55rem; font-weight: 700; color: #212529; margin-bottom: .1rem; }
+  .stat-card .metric-subtext { font-size: .6rem; letter-spacing: .04em; color: #868e96; }
+  .stat-card .icon-wrap { position: absolute; top: -10px; right: -10px; width: 76px; height: 76px; opacity: .08; display: flex; align-items: center; justify-content: center; }
+  .stat-card .icon-wrap i { font-size: 48px; }
+  .stat-card.variant-primary { border-left: 4px solid #007bff; }
+  .stat-card.variant-success { border-left: 4px solid #28a745; }
+  .stat-card.variant-warning { border-left: 4px solid #ffc107; }
+  .stat-card.variant-danger { border-left: 4px solid #dc3545; }
+  .stat-card.variant-info { border-left: 4px solid #17a2b8; }
+  .stat-card.variant-secondary { border-left: 4px solid #6c757d; }
+  .stat-card a { color: inherit; text-decoration: none; }
+  .org-header { display: flex; align-items: center; gap: .85rem; margin-bottom: 1.5rem; }
+  .org-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; box-shadow: 0 0.25rem 0.6rem rgba(0,0,0,0.15); }
+  .org-avatar.placeholder { display: flex; align-items: center; justify-content: center; background: #dee2e6; color: #495057; font-weight: 600; font-size: 1.1rem; text-transform: uppercase; }
+  .org-titles h1 { font-size: 1.65rem; margin-bottom: .1rem; }
+  .org-titles .org-subtitle { font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: #868e96; margin: 0; }
     .table-responsive { max-height: calc(100vh - 200px); overflow-y: auto; }
     .table-responsive thead th {
       position: sticky;
@@ -94,76 +114,86 @@
 <body>
   {% include 'navbar.html' %}
   <div class="container-fluid my-4">
-    <h1>Repositories for {{ profile }}</h1>
-
-    <!-- summary statistics -->
-    <div class="row mb-4">
-      <div class="col-md-4">
-        <div class="card text-center shadow-sm">
-          <div class="card-body">
-            <h5 class="card-title text-primary">Total Repos</h5>
-            <h2 class="text-primary">{{ total_repos }}</h2>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card text-center shadow-sm">
-          <div class="card-body">
-            <h5 class="card-title text-success">Total Stars</h5>
-            <h2 class="text-success">{{ total_stars }}</h2>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card text-center shadow-sm">
-          <div class="card-body">
-            <h5 class="card-title text-warning">Total Forks</h5>
-            <h2 class="text-warning">{{ total_forks }}</h2>
-          </div>
-        </div>
+    <div class="org-header">
+      {% if company_avatar %}
+        <img src="{{ company_avatar }}" alt="{{ company_name or profile }} logo" class="org-avatar">
+      {% else %}
+        <div class="org-avatar placeholder">{{ (company_name or profile)[0:2]|upper }}</div>
+      {% endif %}
+      <div class="org-titles">
+        <h1 class="mb-1">{{ company_name or profile }}</h1>
+        <p class="org-subtitle mb-0"><i class="fab fa-github mr-1"></i>{{ profile }}</p>
       </div>
     </div>
 
-    <!-- additional summary statistics -->
-    <div class="row mb-4">
-      <div class="col-md-4">
-        <div class="card text-center shadow-sm">
-          <div class="card-body">
-            <h5 class="card-title text-danger">Zero-Library Repos</h5>
-            <h2 class="text-danger">
-              <a href="{{ url_for('zero_libraries_repos', profile=profile) }}" style="color: inherit; text-decoration: none;">
-                {{ count_zero_libs }}
-              </a>
-            </h2>
-          </div>
-        </div>
+    {% if selected_library %}
+    <div class="alert alert-info d-flex align-items-center justify-content-between" role="alert">
+      <div>
+        <strong>Filtered by library:</strong> {{ selected_library }}{% if selected_version %} <span class="text-muted">(version {{ selected_version }})</span>{% endif %}
       </div>
-      <div class="col-md-4">
-        <div class="card text-center shadow-sm">
-          <div class="card-body">
-            <h5 class="card-title text-warning">Vulnerable Repos</h5>
-            <h2 class="text-warning">
-              <a href="#" onclick="filterVulnerableRepos(); return false;" style="color: inherit; text-decoration: none;">
-                {{ count_vuln_repos }} ({{ pct_vuln_repos }}%)
-              </a>
-            </h2>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card text-center shadow-sm">
-          <div class="card-body">
-            <h5 class="card-title text-info">Active / Non-Active Repos</h5>
-            <h2 class="text-info">{{ count_active }} / {{ count_non_active }}</h2>
-          </div>
-        </div>
+      <div class="d-flex align-items-center">
+        <a class="btn btn-outline-secondary btn-sm mr-2" href="{{ url_for('repos', profile=profile) }}">Clear filter</a>
+        <a class="btn btn-primary btn-sm" href="{{ url_for('vuln_library_version_orgs') }}?library={{ selected_library | urlencode }}{% if selected_version %}&version={{ selected_version | urlencode }}{% endif %}">Back to affected organizations</a>
       </div>
     </div>
+    {% endif %}
 
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <a href="{{ url_for('index') }}" class="btn btn-secondary">
-        <i class="fas fa-arrow-left mr-1"></i>Back
-      </a>
+    <section class="stats-grid">
+      <div class="stat-card variant-primary">
+        <div class="icon-wrap text-primary"><i class="fas fa-archive"></i></div>
+        <div class="metric-label">Total Repositories</div>
+        <div class="metric-value">{{ total_repos }}</div>
+        <div class="metric-subtext">All public repos tracked for this organization</div>
+      </div>
+      <div class="stat-card variant-success">
+        <div class="icon-wrap text-success"><i class="fas fa-star"></i></div>
+        <div class="metric-label">Total Stars</div>
+        <div class="metric-value">{{ total_stars }}</div>
+        <div class="metric-subtext">Across every repository in the portfolio</div>
+      </div>
+      <div class="stat-card variant-warning">
+        <div class="icon-wrap text-warning"><i class="fas fa-code-branch"></i></div>
+        <div class="metric-label">Total Forks</div>
+        <div class="metric-value">{{ total_forks }}</div>
+        <div class="metric-subtext">Community engagement via forks</div>
+      </div>
+      <div class="stat-card variant-danger">
+        <div class="icon-wrap text-danger"><i class="fas fa-box-open"></i></div>
+        <div class="metric-label">Zero-Library Repos</div>
+        <div class="metric-value">
+          <a href="{{ url_for('zero_libraries_repos', profile=profile) }}">{{ count_zero_libs }}</a>
+        </div>
+        <div class="metric-subtext">Repositories without dependency manifests</div>
+      </div>
+      <div class="stat-card variant-secondary">
+        <div class="icon-wrap text-secondary"><i class="fas fa-exclamation-triangle"></i></div>
+        <div class="metric-label">Vulnerable Repos</div>
+        <div class="metric-value">
+          <a href="#" onclick="filterVulnerableRepos(); return false;">{{ count_vuln_repos }}</a>
+          <span class="small text-muted">({{ pct_vuln_repos }}%)</span>
+        </div>
+        <div class="metric-subtext">Share of analyzed repositories</div>
+      </div>
+      <div class="stat-card variant-info">
+        <div class="icon-wrap text-info"><i class="fas fa-traffic-light"></i></div>
+        <div class="metric-label">Active vs Inactive</div>
+        <div class="metric-value">{{ count_active }} / {{ count_non_active }}</div>
+        <div class="metric-subtext">Active repositories monitored vs inactive</div>
+      </div>
+    </section>
+
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mb-3 gap-2">
+      <div class="d-flex align-items-center gap-2 mb-2 mb-lg-0">
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">
+          <i class="fas fa-arrow-left mr-1"></i>Back
+        </a>
+        <a href="{{ url_for('org_libs', org=profile) }}" class="btn btn-primary">
+          <i class="fas fa-layer-group mr-1"></i>View All Libraries
+        </a>
+        <button type="button" class="btn btn-outline-danger" id="toggleVulnBtn">
+          <i class="fas fa-exclamation-circle mr-1"></i>Show vulnerable only
+        </button>
+      </div>
       <form class="form-inline" method="get">
         <input type="hidden" name="sort_by" value="{{ sort_by }}">
         <input type="hidden" name="order" value="{{ order }}">
@@ -211,77 +241,102 @@
     <div id="repos-table"></div>
     
     <script>
-      var tableData = {{ records|tojson }};
-      // Define columns with link formatter for repository_name
-      var tableCols = [
-        {% for col in columns %}
-        {
-          title: "{{ col }}",
-          field: "{{ col }}",
-          hozAlign: "left",
-          headerSort: true
-          {% if col=='repository_name' %},
-          formatter: function(cell) {
+      const tableData = {{ records|tojson|safe }};
+      let tableCols = [];
+      {% for col in columns %}
+      (function(){
+        const fieldName = "{{ col }}";
+        const colDef = {title: fieldName, field: fieldName, headerSort: true, hozAlign: 'left', sorter: 'string'};
+        if(fieldName === 'repository_name'){
+          colDef.formatter = function(cell){
             const repo = cell.getValue();
             const org = cell.getRow().getData().organization;
             return `<a href="/libs/${org}/${repo}">${repo}</a>`;
-          }
-          {% endif %}
-        },
-        {% endfor %}
-      ];
-      // Remove any duplicate columns
-      tableCols = tableCols.filter((c,i,a) => a.findIndex(x=>x.field===c.field)===i);
+          };
+        }
+        if(['repository_url','repository','full_name'].includes(fieldName)){
+          colDef.formatter = function(cell){
+            const url = cell.getValue();
+            if(!url) return '';
+            let short = (url+'').replace(/^https?:\/\//,'');
+            return `<a href="${url}" target="_blank" rel="noopener" class="text-decoration-none">🔗 ${short}</a>`;
+          };
+        }
+        if(['stars','forks','watchers','open_issues','size_gb','days_since_last_update'].includes(fieldName)){
+          colDef.sorter = 'number';
+          colDef.hozAlign = 'right';
+        }
+        tableCols.push(colDef);
+      })();
+      {% endfor %}
+      tableCols = tableCols.filter((c,i,a)=>a.findIndex(x=>x.field===c.field)===i);
 
-      // Instantiate Tabulator
-      var table = new Tabulator("#repos-table", {
+      const table = new Tabulator('#repos-table', {
         data: tableData,
         columns: tableCols,
-        layout: "fitData", // Changed from fitDataStretch to fitData for better horizontal scrolling
-        pagination: "local",
-        paginationSize: 50,
-        theme: "bootstrap",
-        paginationSizeSelector: [25,50,100,250,500,true],
-        paginationButtonCount: 5,
-        virtualDom: true,
-        height: "auto",
-        minWidth: 300, // Minimum width for each column
-        resizableColumns: true, // Allow column resizing
-        movableColumns: true, // Allow column reordering
+        layout: 'fitDataStretch',
+        pagination: 'local',
+        paginationSize: 100,
+        paginationSizeSelector: [25,50,100,250,500,1000,true],
+        movableColumns: true,
+        resizableColumns: true,
+        height: '70vh',
+        tooltips: true,
+        virtualDomBuffer: 600,
       });
-      
-      // Setup synchronized top scrollbar
-      function setupTopScrollbar() {
-        const topScrollbar = document.getElementById('top-scrollbar');
-        const topScrollbarContent = document.getElementById('top-scrollbar-content');
-        const tableHolder = document.querySelector('.tabulator-tableholder');
-        
-        if (tableHolder) {
-          // Set the content width to match the table's scroll width
-          topScrollbarContent.style.width = tableHolder.scrollWidth + 'px';
-          topScrollbar.style.display = 'block';
-          
-          // Sync top scrollbar with table
-          topScrollbar.addEventListener('scroll', function() {
-            tableHolder.scrollLeft = this.scrollLeft;
-          });
-          
-          // Sync table with top scrollbar
-          tableHolder.addEventListener('scroll', function() {
-            topScrollbar.scrollLeft = this.scrollLeft;
-          });
+
+      function setupTopScrollbar(){
+        const holder = document.querySelector('.tabulator-tableholder');
+        const topSb = document.getElementById('top-scrollbar');
+        const topContent = document.getElementById('top-scrollbar-content');
+        if(holder){
+          topContent.style.width = holder.scrollWidth + 'px';
+            topSb.style.display = 'block';
+            topSb.onscroll = ()=> holder.scrollLeft = topSb.scrollLeft;
+            holder.onscroll = ()=> topSb.scrollLeft = holder.scrollLeft;
         }
       }
-      
-      // Setup the top scrollbar after table is built
-      table.on("tableBuilt", function() {
-        setTimeout(setupTopScrollbar, 100);
-      });
-      
-      // Re-setup on data updates
-      table.on("dataChanged", function() {
-        setTimeout(setupTopScrollbar, 100);
-      });
+      table.on('tableBuilt', ()=> setTimeout(setupTopScrollbar,50));
+      table.on('dataChanged', ()=> setTimeout(setupTopScrollbar,50));
+
+      // client-side global search (overrides server search if user continues typing)
+      let vulnOnly = false;
+      const toggleBtn = document.getElementById('toggleVulnBtn');
+      const searchInput = document.querySelector('input[name="search"]');
+
+      function applyFilters(){
+        const term = (searchInput?.value || '').toLowerCase();
+        const filters = [];
+        if(term){
+          filters.push(function(data){
+            return Object.values(data).some(v => (v===null?'' : String(v)).toLowerCase().includes(term));
+          });
+        }
+        if(vulnOnly){
+          filters.push(function(data){
+            const flag = data.vulnerable_repo;
+            return String(flag).toLowerCase() === 'yes' || flag === true;
+          });
+        }
+        table.clearFilter();
+        filters.forEach(fn => table.addFilter(fn));
+      }
+
+      if(searchInput){
+        searchInput.addEventListener('input', applyFilters);
+      }
+
+      if(toggleBtn){
+        toggleBtn.addEventListener('click', function(){
+          vulnOnly = !vulnOnly;
+          this.classList.toggle('btn-outline-danger', !vulnOnly);
+          this.classList.toggle('btn-danger', vulnOnly);
+          this.innerHTML = vulnOnly ? '<i class="fas fa-exclamation-circle mr-1"></i>Showing vulnerable only' : '<i class="fas fa-exclamation-circle mr-1"></i>Show vulnerable only';
+          applyFilters();
+        });
+      }
+
+      applyFilters();
     </script>
   </div>
 </body>

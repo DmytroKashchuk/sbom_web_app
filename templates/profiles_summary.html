@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Raw Data • Profiles Summary</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <!-- Tabulator CSS -->
+  <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet">
+  <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator_simple.min.css" rel="stylesheet">
+  <style>
+    body { padding-top: 70px; }
+    .tabulator .tabulator-header .tabulator-col .tabulator-col-title { font-weight: 600; }
+    /* Top horizontal scrollbar styles */
+    #top-scroll {
+      overflow-x: auto;
+      overflow-y: hidden;
+      height: 18px;
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: .25rem;
+    }
+    #top-scroll::-webkit-scrollbar {
+      height: 12px;
+    }
+    #top-scroll-inner {
+      height: 1px; /* just a track */
+    }
+  </style>
+</head>
+<body>
+  {% include 'navbar.html' %}
+  <div class="container-fluid">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h2 class="mb-0">Profiles Summary (raw)</h2>
+      <div class="form-inline">
+        <span class="mr-3 text-muted small">Rows: <strong id="row-count">0</strong></span>
+        <input id="search-input" class="form-control form-control-sm mr-2" type="search" placeholder="Search...">
+        <button id="clear-search" class="btn btn-sm btn-outline-secondary">Clear</button>
+      </div>
+    </div>
+
+    <!-- Top horizontal scrollbar synced with Tabulator's holder -->
+    <div id="top-scroll" class="mb-1">
+      <div id="top-scroll-inner"></div>
+    </div>
+
+  <!-- Inline JSON payloads to avoid JS lint issues with templating -->
+  <script id="profiles-data" type="application/json">{{ records|tojson | safe }}</script>
+  <script id="profiles-columns" type="application/json">{{ columns|tojson | safe }}</script>
+
+  <div id="profiles-table"></div>
+  </div>
+
+  <!-- Vendor JS -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  <script src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
+
+  <script>
+  const tableData = JSON.parse(document.getElementById('profiles-data').textContent || '[]');
+  const colsArr = JSON.parse(document.getElementById('profiles-columns').textContent || '[]');
+  // show count
+  document.getElementById('row-count').textContent = Array.isArray(tableData) ? tableData.length : 0;
+  // Generate columns dynamically with a couple of niceties
+  const columns = (colsArr || []).map(col => {
+      const base = { title: col, field: col, headerSort: true };
+      if (col === 'github_profile' || col === 'site_url') {
+        return { ...base, formatter: function(cell){
+            const val = cell.getValue();
+            if (!val) return '';
+            const text = (''+val).replace(/^https?:\/\//,'');
+            return `<a href="${val}" target="_blank" rel="noopener">${text}</a>`;
+          }
+        };
+      }
+      if (col === 'github_profile_name') {
+        return { ...base, formatter: function(cell){
+            const val = cell.getValue();
+            if (!val) return '';
+            return `<a href="/repos/${val}">${val}</a>`;
+          }
+        };
+      }
+      return base;
+    });
+
+    // Fallback columns if none provided by server
+    const colsFinal = (Array.isArray(colsArr) && colsArr.length)
+      ? colsArr
+      : (Array.isArray(tableData) && tableData.length ? Object.keys(tableData[0]) : []);
+
+    const table = new Tabulator("#profiles-table", {
+      data: tableData,
+  columns: (colsFinal || []).map(col => {
+      const base = { title: col, field: col, headerSort: true };
+      if (col === 'github_profile' || col === 'site_url') {
+        return { ...base, formatter: function(cell){
+            const val = cell.getValue();
+            if (!val) return '';
+            const text = (''+val).replace(/^https?:\/\//,'');
+            return `<a href="${val}" target="_blank" rel="noopener">${text}</a>`;
+          }
+        };
+      }
+      if (col === 'github_profile_name') {
+        return { ...base, formatter: function(cell){
+            const val = cell.getValue();
+            if (!val) return '';
+            return `<a href="/repos/${val}">${val}</a>`;
+          }
+        };
+      }
+      return base;
+    }),
+  // Use fitData so total column width can exceed container width (enables horizontal scroll)
+  layout: "fitData",
+  columnMinWidth: 140,
+      pagination: "local",
+      paginationSize: 50,
+      paginationSizeSelector: [25,50,100,250,500,true],
+      paginationButtonCount: 5,
+  // Keep natural height; rely on outer page scroll. Horizontal scroll is synced to #top-scroll.
+  height: "auto",
+  virtualDom: true,
+      // Keep header visible while scrolling if desired
+      columnHeaderVertAlign: "bottom",
+      placeholder: "No data available",
+    });
+
+    // Setup top horizontal scrollbar sync
+  const holder = table.getElement().querySelector('.tabulator-tableholder');
+    const topScroll = document.getElementById('top-scroll');
+    const topInner = document.getElementById('top-scroll-inner');
+
+    function updateTopScrollWidth(){
+      if (!holder || !topInner) return;
+      // width of the scrollable content
+      const contentWidth = Math.max(holder.scrollWidth, holder.clientWidth + 1);
+      topInner.style.width = contentWidth + 'px';
+      // sync position on init
+      topScroll.scrollLeft = holder.scrollLeft;
+    }
+
+    if (holder && topScroll) {
+      topScroll.addEventListener('scroll', () => { holder.scrollLeft = topScroll.scrollLeft; });
+      holder.addEventListener('scroll', () => { topScroll.scrollLeft = holder.scrollLeft; });
+      // Update track width after table builds and on column resize/data load
+  table.on('tableBuilt', updateTopScrollWidth);
+  table.on('dataLoaded', updateTopScrollWidth);
+  table.on('renderComplete', updateTopScrollWidth);
+  table.on('columnResized', updateTopScrollWidth);
+      // Initial
+      updateTopScrollWidth();
+      // Also respond to window resize
+      window.addEventListener('resize', updateTopScrollWidth);
+    }
+
+    // Simple search
+    const searchInput = document.getElementById('search-input');
+    const clearBtn = document.getElementById('clear-search');
+
+    function doSearch(){
+      const q = (searchInput.value || '').trim();
+      if (!q) { table.clearFilter(); return; }
+      table.setFilter(function(rowData){
+        const str = Object.values(rowData || {}).join(' ').toLowerCase();
+        return str.indexOf(q.toLowerCase()) !== -1;
+      });
+    }
+
+    searchInput.addEventListener('input', doSearch);
+    clearBtn.addEventListener('click', () => { searchInput.value = ''; table.clearFilter(); });
+  </script>
+</body>
+</html>
