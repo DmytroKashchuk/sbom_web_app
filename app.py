@@ -1403,32 +1403,88 @@ def api_library_version_organizations():
 # Vulnerability propagations page
 @app.route('/vulnerability_propagations')
 def vulnerability_propagations():
-    # List all vulnerabilities with count of unique repositories
-    df = pd.read_csv(VULN_SUMMARY_PATH)
     df_id = pd.read_csv(VULN_ID)
     df_id.columns = df_id.columns.str.strip()
-    df.columns = df.columns.str.strip()
+
     # Count unique repositories per vulnerability
     counts = df_id.groupby('vulnerability_id')['repository'].nunique().sort_values(ascending=False)
-    # Get package name, installed version, severity & description
-    info = df_id[['vulnerability_id', 'package_name', 'installed_version', 'severity', 'description']]
-    info = info.drop_duplicates(subset=['vulnerability_id']).set_index('vulnerability_id')
-    # Collect unique organizations affected per vulnerability
-    orgs = df_id.groupby('vulnerability_id')['Organization'].apply(lambda s: sorted(set(s.dropna())))
-    orgs.name = 'organizations'
-    # Build DataFrame with counts, info, and org list
-    vuln_df = counts.to_frame(name='repo_count').join(info).join(orgs)
-    # Convert vulnerability data to records
-    vuln_data = vuln_df.reset_index().to_dict('records')
-    # Compute top 10 repositories by number of vulnerable libraries
+    # Get package name, installed version, severity, description, fixed_version, links
+    info_cols = [c for c in ['vulnerability_id', 'package_name', 'installed_version', 'severity', 'description', 'fixed_version', 'links'] if c in df_id.columns]
+    info = df_id[info_cols].drop_duplicates(subset=['vulnerability_id']).set_index('vulnerability_id')
+    # Org count per vulnerability
+    org_counts = df_id.groupby('vulnerability_id')['Organization'].nunique()
+    org_counts.name = 'org_count'
+    # Build combined DataFrame
+    vuln_df = counts.to_frame(name='repo_count').join(info).join(org_counts)
+    vuln_df = vuln_df.reset_index()
+
+    # Summary metrics
+    total_vulnerabilities = int(vuln_df['vulnerability_id'].nunique()) if not vuln_df.empty else 0
+    total_repositories = int(df_id['repository'].nunique()) if 'repository' in df_id.columns else 0
+    total_organizations = int(df_id['Organization'].nunique()) if 'Organization' in df_id.columns else 0
+    sev_upper = df_id['severity'].astype(str).str.strip().str.lower() if 'severity' in df_id.columns else pd.Series(dtype=str)
+    critical_or_high = int(sev_upper.isin(['critical', 'high']).sum()) if not sev_upper.empty else 0
+
+    class SummaryMetrics:
+        pass
+    summary_metrics = SummaryMetrics()
+    summary_metrics.total_vulnerabilities = total_vulnerabilities
+    summary_metrics.total_repositories = total_repositories
+    summary_metrics.total_organizations = total_organizations
+    summary_metrics.critical_or_high = critical_or_high
+
+    # Severity counts for doughnut chart
+    severity_counts = {}
+    if 'severity' in df_id.columns:
+        severity_counts = (
+            df_id['severity'].astype(str).str.strip()
+            .replace({'nan': 'Unknown', '': 'Unknown'})
+            .value_counts()
+            .to_dict()
+        )
+
+    # Top 10 packages by impacted repo count
+    if 'package_name' in df_id.columns and 'repository' in df_id.columns:
+        pkg_impact = df_id.groupby('package_name')['repository'].nunique().sort_values(ascending=False).head(10)
+        top_packages = {'labels': list(pkg_impact.index), 'values': [int(v) for v in pkg_impact.values]}
+    else:
+        top_packages = {'labels': [], 'values': []}
+
+    # Replace NaN/inf for JSON safety
+    num_cols = vuln_df.select_dtypes(include=[float, int]).columns
+    for c in num_cols:
+        vuln_df[c] = vuln_df[c].replace([np.inf, -np.inf], np.nan)
+    vuln_df = vuln_df.where(vuln_df.notnull(), None)
+    records = vuln_df.to_dict('records')
+    # Extra pass: convert any remaining numpy types
+    for rec in records:
+        for k, v in list(rec.items()):
+            if isinstance(v, (float,)) and (v != v or v == float('inf') or v == float('-inf')):
+                rec[k] = None
+            elif isinstance(v, (np.integer,)):
+                rec[k] = int(v)
+            elif isinstance(v, (np.floating,)):
+                rec[k] = float(v) if not (np.isnan(v) or np.isinf(v)) else None
+    records_json = json.dumps(records, allow_nan=False)
+
+    return render_template('vulnerability_propagations.html',
+        records_json=records_json,
+        summary_metrics=summary_metrics,
+        severity_counts=severity_counts,
+        top_packages=top_packages
+    )
+
+# Vulnerability propagations - repository impact view
+@app.route('/vulnerability_propagations/repositories')
+def vulnerability_propagations_repositories():
+    df = pd.read_csv(VULN_SUMMARY_PATH)
+    df.columns = df.columns.str.strip()
     df_vuln = df[df['is_vulnerable'].astype(str).str.lower() == 'true']
-    # Count unique vulnerable libraries per organization and repository
     repo_counts = df_vuln.groupby(['organization', 'repository'])['library'].nunique()
     repo_counts.name = 'vuln_lib_count'
     top_repo_df = repo_counts.sort_values(ascending=False).head(10).reset_index()
     repo_vuln = top_repo_df.to_dict('records')
-    # Render template with both datasets
-    return render_template('vulnerability_propagations.html', vuln_repos=vuln_data, repo_vuln=repo_vuln)
+    return render_template('vulnerability_propagations_repos.html', repo_vuln=repo_vuln)
 
 @app.route('/vuln_orgs/<vuln_id>')
 def vuln_orgs(vuln_id):
@@ -1731,5 +1787,5 @@ def repositories_summary_raw():
 
 
 if __name__=='__main__':
-    app.run(host='0.0.0.0', port=80, debug=True)
+    app.run(host='0.0.0.0', port=8883)
 
